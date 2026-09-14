@@ -1,34 +1,28 @@
-import "dotenv/config";
-import { createServer } from "node:http";
+import http from "node:http";
 import { Server } from "socket.io";
 import { createApp } from "./app.js";
-
-const port = Number(process.env.PORT ?? 3000);
+import { env } from "./config/env.js";
 
 const app = createApp();
-const httpServer = createServer(app);
+const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
     origin:
-      process.env.CORS_ORIGIN === "*"
+      env.corsOrigin === "*"
         ? true
-        : process.env.CORS_ORIGIN
+        : env.corsOrigin
   }
 });
 
 io.on("connection", (socket) => {
-  console.log(`Client connected: ${socket.id}`);
-
-  socket.emit("server:ready", {
-    service: "wasal-server"
-  });
+  console.log(`Socket connected: ${socket.id}`);
 
   socket.on("disconnect", () => {
-    console.log(`Client disconnected: ${socket.id}`);
+    console.log(`Socket disconnected: ${socket.id}`);
   });
 });
 
-httpServer.listen(port, () => {
-  console.log(`Wasal server listening on port ${port}`);
+httpServer.listen(env.port, () => {
+  console.log(`Wasal server running on port ${env.port}`);
 });
