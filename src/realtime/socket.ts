@@ -15,7 +15,10 @@ interface AuthenticatedSocket extends Socket {
 
 const CALL_RING_TIMEOUT_MS = 30_000;
 
-const callTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const callTimers = new Map<
+  string,
+  ReturnType<typeof setTimeout>
+>();
 
 function clearCallTimer(callId: string): void {
   const timer = callTimers.get(callId);
@@ -26,6 +29,60 @@ function clearCallTimer(callId: string): void {
 
   clearTimeout(timer);
   callTimers.delete(callId);
+}
+
+function scheduleMissedCall(
+  io: Server,
+  callId: string,
+): void {
+  clearCallTimer(callId);
+
+  const timer = setTimeout(() => {
+    const call = callStore.get(callId);
+
+    if (!call) {
+      callTimers.delete(callId);
+      return;
+    }
+
+    if (call.status !== "ringing") {
+      callTimers.delete(callId);
+      return;
+    }
+
+    const missedCall = callStore.updateStatus(
+      callId,
+      "missed",
+    );
+
+    if (!missedCall) {
+      callTimers.delete(callId);
+      return;
+    }
+
+    io.to(`user:${missedCall.callerId}`).emit(
+      CALL_EVENTS.END,
+      {
+        callId: missedCall.callId,
+        userId: "system",
+        reason: "missed",
+      },
+    );
+
+    io.to(`user:${missedCall.receiverId}`).emit(
+      CALL_EVENTS.END,
+      {
+        callId: missedCall.callId,
+        userId: "system",
+        reason: "missed",
+      },
+    );
+
+    callStore.delete(callId);
+    callTimers.delete(callId);
+  }, CALL_RING_TIMEOUT_MS);
+
+  callTimers.set(callId, timer);
 }
 
 export function setupSocket(io: Server): void {
@@ -57,49 +114,71 @@ export function setupSocket(io: Server): void {
 
     socket.join(`user:${userId}`);
 
-    console.log(`User ${userId} connected via socket`);
+    console.log(
+      `User ${userId} connected via socket`,
+    );
 
     // =========================
     // Conversation
     // =========================
 
-    socket.on("join_conversation", (conversationId: string) => {
-      if (!conversationId) {
-        return;
-      }
+    socket.on(
+      "join_conversation",
+      (conversationId: string) => {
+        if (!conversationId) {
+          return;
+        }
 
-      socket.join(`conversation:${conversationId}`);
-    });
+        socket.join(
+          `conversation:${conversationId}`,
+        );
+      },
+    );
 
-    socket.on("leave_conversation", (conversationId: string) => {
-      if (!conversationId) {
-        return;
-      }
+    socket.on(
+      "leave_conversation",
+      (conversationId: string) => {
+        if (!conversationId) {
+          return;
+        }
 
-      socket.leave(`conversation:${conversationId}`);
-    });
+        socket.leave(
+          `conversation:${conversationId}`,
+        );
+      },
+    );
 
-    socket.on("typing", (conversationId: string) => {
-      if (!conversationId) {
-        return;
-      }
+    socket.on(
+      "typing",
+      (conversationId: string) => {
+        if (!conversationId) {
+          return;
+        }
 
-      socket.to(`conversation:${conversationId}`).emit("typing", {
-        conversationId,
-        userId,
-      });
-    });
+        socket
+          .to(`conversation:${conversationId}`)
+          .emit("typing", {
+            conversationId,
+            userId,
+          });
+      },
+    );
 
-    socket.on("stop_typing", (conversationId: string) => {
-      if (!conversationId) {
-        return;
-      }
+    socket.on(
+      "stop_typing",
+      (conversationId: string) => {
+        if (!conversationId) {
+          return;
+        }
 
-      socket.to(`conversation:${conversationId}`).emit("stop_typing", {
-        conversationId,
-        userId,
-      });
-    });
+        socket
+          .to(`conversation:${conversationId}`)
+          .emit("stop_typing", {
+            conversationId,
+            userId,
+          });
+      },
+    );
 
     // =========================
     // Start Call
@@ -115,7 +194,10 @@ export function setupSocket(io: Server): void {
           return;
         }
 
-        if (data.type !== "audio" && data.type !== "video") {
+        if (
+          data.type !== "audio" &&
+          data.type !== "video"
+        ) {
           return;
         }
 
@@ -123,7 +205,7 @@ export function setupSocket(io: Server): void {
           const call = callStore.create(
             userId,
             data.receiverId,
-            data.type
+            data.type,
           );
 
           io.to(`user:${data.receiverId}`).emit(
@@ -135,174 +217,154 @@ export function setupSocket(io: Server): void {
               type: call.type,
               status: call.status,
               createdAt: call.createdAt,
-            }
+            },
           );
 
-          // Automatically mark the call as missed
-          // if the receiver does not answer within 30 seconds.
-          const timer = setTimeout(() => {
-            const currentCall = callStore.get(call.callId);
-
-            if (!currentCall) {
-              clearCallTimer(call.callId);
-              return;
-            }
-
-            if (currentCall.status !== "ringing") {
-              clearCallTimer(call.callId);
-              return;
-            }
-
-            const missedCall = callStore.updateStatus(
-              call.callId,
-              "missed"
-            );
-
-            if (!missedCall) {
-              clearCallTimer(call.callId);
-              return;
-            }
-
-            io.to(`user:${missedCall.callerId}`).emit(
-              CALL_EVENTS.END,
-              {
-                callId: missedCall.callId,
-                userId: missedCall.receiverId,
-                reason: "missed",
-              }
-            );
-
-            io.to(`user:${missedCall.receiverId}`).emit(
-              CALL_EVENTS.END,
-              {
-                callId: missedCall.callId,
-                userId: missedCall.callerId,
-                reason: "missed",
-              }
-            );
-
-            callStore.delete(call.callId);
-            clearCallTimer(call.callId);
-          }, CALL_RING_TIMEOUT_MS);
-
-          callTimers.set(call.callId, timer);
+          scheduleMissedCall(
+            io,
+            call.callId,
+          );
         } catch {
           socket.emit("call:error", {
             code: "CALL_START_FAILED",
           });
         }
-      }
+      },
     );
 
     // =========================
     // Accept Call
     // =========================
 
-    socket.on(CALL_EVENTS.ACCEPT, (callId: string) => {
-      const call = callStore.get(callId);
+    socket.on(
+      CALL_EVENTS.ACCEPT,
+      (callId: string) => {
+        const call = callStore.get(callId);
 
-      if (!call || call.receiverId !== userId) {
-        return;
-      }
-
-      clearCallTimer(callId);
-
-      const updatedCall = callStore.updateStatus(
-        callId,
-        "accepted"
-      );
-
-      if (!updatedCall) {
-        return;
-      }
-
-      io.to(`user:${updatedCall.callerId}`).emit(
-        CALL_EVENTS.ACCEPT,
-        {
-          callId: updatedCall.callId,
-          userId,
+        if (
+          !call ||
+          call.receiverId !== userId
+        ) {
+          return;
         }
-      );
-    });
+
+        clearCallTimer(callId);
+
+        const updatedCall =
+          callStore.updateStatus(
+            callId,
+            "accepted",
+          );
+
+        if (!updatedCall) {
+          return;
+        }
+
+        io.to(
+          `user:${updatedCall.callerId}`,
+        ).emit(
+          CALL_EVENTS.ACCEPT,
+          {
+            callId: updatedCall.callId,
+            userId,
+          },
+        );
+      },
+    );
 
     // =========================
     // Reject Call
     // =========================
 
-    socket.on(CALL_EVENTS.REJECT, (callId: string) => {
-      const call = callStore.get(callId);
+    socket.on(
+      CALL_EVENTS.REJECT,
+      (callId: string) => {
+        const call = callStore.get(callId);
 
-      if (!call || call.receiverId !== userId) {
-        return;
-      }
-
-      clearCallTimer(callId);
-
-      const updatedCall = callStore.updateStatus(
-        callId,
-        "rejected"
-      );
-
-      if (!updatedCall) {
-        return;
-      }
-
-      io.to(`user:${updatedCall.callerId}`).emit(
-        CALL_EVENTS.REJECT,
-        {
-          callId: updatedCall.callId,
-          userId,
+        if (
+          !call ||
+          call.receiverId !== userId
+        ) {
+          return;
         }
-      );
 
-      callStore.delete(callId);
-    });
+        clearCallTimer(callId);
+
+        const updatedCall =
+          callStore.updateStatus(
+            callId,
+            "rejected",
+          );
+
+        if (!updatedCall) {
+          return;
+        }
+
+        io.to(
+          `user:${updatedCall.callerId}`,
+        ).emit(
+          CALL_EVENTS.REJECT,
+          {
+            callId: updatedCall.callId,
+            userId,
+          },
+        );
+
+        callStore.delete(callId);
+      },
+    );
 
     // =========================
     // End Call
     // =========================
 
-    socket.on(CALL_EVENTS.END, (callId: string) => {
-      const call = callStore.get(callId);
+    socket.on(
+      CALL_EVENTS.END,
+      (callId: string) => {
+        const call = callStore.get(callId);
 
-      if (!call) {
-        return;
-      }
-
-      if (
-        call.callerId !== userId &&
-        call.receiverId !== userId
-      ) {
-        return;
-      }
-
-      clearCallTimer(callId);
-
-      const updatedCall = callStore.updateStatus(
-        callId,
-        "ended"
-      );
-
-      if (!updatedCall) {
-        return;
-      }
-
-      const otherUserId =
-        updatedCall.callerId === userId
-          ? updatedCall.receiverId
-          : updatedCall.callerId;
-
-      io.to(`user:${otherUserId}`).emit(
-        CALL_EVENTS.END,
-        {
-          callId: updatedCall.callId,
-          userId,
-          reason: "ended",
+        if (!call) {
+          return;
         }
-      );
 
-      callStore.delete(callId);
-    });
+        if (
+          call.callerId !== userId &&
+          call.receiverId !== userId
+        ) {
+          return;
+        }
+
+        clearCallTimer(callId);
+
+        const updatedCall =
+          callStore.updateStatus(
+            callId,
+            "ended",
+          );
+
+        if (!updatedCall) {
+          return;
+        }
+
+        const otherUserId =
+          updatedCall.callerId === userId
+            ? updatedCall.receiverId
+            : updatedCall.callerId;
+
+        io.to(
+          `user:${otherUserId}`,
+        ).emit(
+          CALL_EVENTS.END,
+          {
+            callId: updatedCall.callId,
+            userId,
+            reason: "ended",
+          },
+        );
+
+        callStore.delete(callId);
+      },
+    );
 
     // =========================
     // WebRTC Offer
@@ -311,7 +373,9 @@ export function setupSocket(io: Server): void {
     socket.on(
       CALL_EVENTS.OFFER,
       (data: CallOffer) => {
-        const call = callStore.get(data.callId);
+        const call = callStore.get(
+          data.callId,
+        );
 
         if (!call) {
           return;
@@ -324,7 +388,9 @@ export function setupSocket(io: Server): void {
           return;
         }
 
-        io.to(`user:${call.receiverId}`).emit(
+        io.to(
+          `user:${call.receiverId}`,
+        ).emit(
           CALL_EVENTS.OFFER,
           {
             callId: call.callId,
@@ -332,9 +398,9 @@ export function setupSocket(io: Server): void {
             receiverId: call.receiverId,
             type: call.type,
             offer: data.offer,
-          }
+          },
         );
-      }
+      },
     );
 
     // =========================
@@ -344,20 +410,27 @@ export function setupSocket(io: Server): void {
     socket.on(
       CALL_EVENTS.ANSWER,
       (data: CallAnswer) => {
-        const call = callStore.get(data.callId);
+        const call = callStore.get(
+          data.callId,
+        );
 
-        if (!call || call.receiverId !== userId) {
+        if (
+          !call ||
+          call.receiverId !== userId
+        ) {
           return;
         }
 
-        io.to(`user:${call.callerId}`).emit(
+        io.to(
+          `user:${call.callerId}`,
+        ).emit(
           CALL_EVENTS.ANSWER,
           {
             callId: call.callId,
             answer: data.answer,
-          }
+          },
         );
-      }
+      },
     );
 
     // =========================
@@ -367,7 +440,9 @@ export function setupSocket(io: Server): void {
     socket.on(
       CALL_EVENTS.ICE_CANDIDATE,
       (data: IceCandidate) => {
-        const call = callStore.get(data.callId);
+        const call = callStore.get(
+          data.callId,
+        );
 
         if (!call) {
           return;
@@ -386,14 +461,16 @@ export function setupSocket(io: Server): void {
             ? call.receiverId
             : call.callerId;
 
-        io.to(`user:${otherUserId}`).emit(
+        io.to(
+          `user:${otherUserId}`,
+        ).emit(
           CALL_EVENTS.ICE_CANDIDATE,
           {
             callId: call.callId,
             candidate: data.candidate,
-          }
+          },
         );
-      }
+      },
     );
 
     // =========================
@@ -402,7 +479,7 @@ export function setupSocket(io: Server): void {
 
     socket.on("disconnect", () => {
       console.log(
-        `User ${userId} disconnected`
+        `User ${userId} disconnected`,
       );
     });
   });
