@@ -275,6 +275,59 @@ it("notifies the caller when the receiver accepts", async () => {
   });
 
   it("forwards a WebRTC offer from the caller to the receiver", async () => {
+   it("forwards a WebRTC video offer from the caller to the receiver", async () => {
+  await createConnectedClients();
+
+  const incomingCall = new Promise<{
+    callId: string;
+    callerId: string;
+    receiverId: string;
+    type: string;
+    status: string;
+  }>((resolve) => {
+    receiver!.once("call:incoming", resolve);
+  });
+
+  caller!.emit("call:start", {
+    receiverId: "receiver-1",
+    type: "video",
+  });
+
+  const call = await incomingCall;
+
+  const offerReceived = new Promise<{
+    callId: string;
+    callerId: string;
+    receiverId: string;
+    type: string;
+    offer: {
+      type: string;
+      sdp: string;
+    };
+  }>((resolve) => {
+    receiver!.once("call:offer", resolve);
+  });
+
+  caller!.emit("call:offer", {
+    callId: call.callId,
+    callerId: "caller-1",
+    receiverId: "receiver-1",
+    type: "video",
+    offer: {
+      type: "offer",
+      sdp: "test-video-offer-sdp",
+    },
+  });
+
+  const event = await offerReceived;
+
+  expect(event.callId).toBe(call.callId);
+  expect(event.callerId).toBe("caller-1");
+  expect(event.receiverId).toBe("receiver-1");
+  expect(event.type).toBe("video");
+  expect(event.offer.type).toBe("offer");
+  expect(event.offer.sdp).toBe("test-video-offer-sdp");
+});
     await createConnectedClients();
 
     const callId = await startAudioCall();
