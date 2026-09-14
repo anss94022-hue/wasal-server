@@ -9,7 +9,16 @@ export async function getUserByIdController(
   req: Request,
   res: Response
 ): Promise<void> {
-  const user = await getUserById(req.params.id);
+  const id = String(req.params.id ?? "");
+
+  if (!id) {
+    res.status(400).json({
+      error: "USER_ID_REQUIRED"
+    });
+    return;
+  }
+
+  const user = await getUserById(id);
 
   if (!user) {
     res.status(404).json({
