@@ -14,6 +14,7 @@ jobs:
 
     env:
       JWT_SECRET: test-secret-for-ci
+      DATABASE_URL: postgresql://test:test@localhost:5432/test
 
     steps:
       - name: Checkout repository
