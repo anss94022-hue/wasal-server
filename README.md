@@ -1,31 +1,46 @@
 # Wasal Server
 
-خادم تطبيق وصال (Wasal) للمراسلة الفورية.
+Backend server for the **وصال (Wasal)** Android messaging application.
 
-## الحالة
-
-🚧 قيد التطوير
-
-## التقنيات
+## Technology
 
 - Node.js
 - TypeScript
 - Express
 - Socket.io
 - PostgreSQL
+- Object Storage
 - WebRTC
 - Coturn
 
-## المزايا
+## Features
 
-- المستخدمون والحسابات
-- المحادثات والرسائل
-- الصور والفيديو والملفات
-- الرسائل الصوتية
-- الملصقات
-- تعديل وحذف وإعادة توجيه الرسائل
-- الردود والتفاعلات
-- المكالمات الصوتية والمرئية
-- الإشعارات الفورية
-- الاستطلاعات والأحداث
-- مشاركة الموقع وجهات الاتصال
+The server will support:
+
+- User accounts
+- Authentication
+- Private conversations
+- Messaging
+- Images and videos
+- Files
+- Voice messages
+- Stickers
+- Message editing
+- Message deletion
+- Message forwarding
+- Replies
+- Reactions
+- Read receipts
+- Voice calls
+- Video calls
+- Polls
+- Events
+- Location sharing
+- Contact sharing
+
+## Development
+
+```bash
+npm install
+npm test
+npm run dev
