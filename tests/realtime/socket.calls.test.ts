@@ -542,43 +542,43 @@ describe("Socket call signaling", () => {
     );
   });
 
-  it("marks an unanswered call as missed after the ringing timeout", async () => {
-    await createConnectedClients();
+  it(
+    "marks an unanswered call as missed after the ringing timeout",
+    async () => {
+      await createConnectedClients();
 
-    vi.useFakeTimers();
+      const incomingCall = new Promise<{
+        callId: string;
+        callerId: string;
+        receiverId: string;
+        type: string;
+        status: string;
+      }>((resolve) => {
+        receiver!.once("call:incoming", resolve);
+      });
 
-    const incomingCall = new Promise<{
-      callId: string;
-      callerId: string;
-      receiverId: string;
-      type: string;
-      status: string;
-    }>((resolve) => {
-      receiver!.once("call:incoming", resolve);
-    });
+      const missedCall = new Promise<{
+        callId: string;
+        userId: string;
+      }>((resolve) => {
+        caller!.once("call:end", resolve);
+      });
 
-    const missedCall = new Promise<{
-      callId: string;
-      userId: string;
-    }>((resolve) => {
-      caller!.once("call:end", resolve);
-    });
+      caller!.emit("call:start", {
+        receiverId: "receiver-1",
+        type: "audio",
+      });
 
-    caller!.emit("call:start", {
-      receiverId: "receiver-1",
-      type: "audio",
-    });
+      const call = await incomingCall;
 
-    const call = await incomingCall;
+      expect(call.callId).toBeTruthy();
+      expect(call.status).toBe("ringing");
 
-    expect(call.callId).toBeTruthy();
-    expect(call.status).toBe("ringing");
+      const missed = await missedCall;
 
-    await vi.advanceTimersByTimeAsync(30000);
-
-    const missed = await missedCall;
-
-    expect(missed.callId).toBe(call.callId);
-    expect(missed.userId).toBe("system");
-  });
+      expect(missed.callId).toBe(call.callId);
+      expect(missed.userId).toBe("system");
+    },
+    35000,
+  );
 });
