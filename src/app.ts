@@ -3,6 +3,7 @@ import express from "express";
 import authRoutes from "./modules/auth/auth.routes.js";
 import usersRoutes from "./modules/users/users.routes.js";
 import conversationsRoutes from "./modules/conversations/conversations.routes.js";
+import messagesRoutes from "./modules/messages/messages.routes.js";
 import { requireAuth } from "./middleware/auth.js";
 
 export function createApp() {
@@ -32,6 +33,11 @@ export function createApp() {
     "/api/conversations",
     requireAuth,
     conversationsRoutes
+  );
+  app.use(
+    "/api/messages",
+    requireAuth,
+    messagesRoutes
   );
 
   return app;
