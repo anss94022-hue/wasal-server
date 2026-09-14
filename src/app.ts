@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import authRoutes from "./modules/auth/auth.routes.js";
 import usersRoutes from "./modules/users/users.routes.js";
+import { requireAuth } from "./middleware/auth.js";
 
 export function createApp() {
   const app = express();
@@ -25,7 +26,7 @@ export function createApp() {
   });
 
   app.use("/api/auth", authRoutes);
-  app.use("/api/users", usersRoutes);
+  app.use("/api/users", requireAuth, usersRoutes);
 
   return app;
 }
