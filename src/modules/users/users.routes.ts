@@ -7,8 +7,8 @@ import {
 
 const router = Router();
 
-router.get("/:id", getUserByIdController);
 router.get("/search/phone", getUserByPhoneController);
 router.get("/search/username", getUserByUsernameController);
+router.get("/:id", getUserByIdController);
 
 export default router;
