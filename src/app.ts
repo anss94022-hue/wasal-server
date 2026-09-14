@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import usersRoutes from "./modules/users/users.routes.js";
 
 export function createApp() {
   const app = express();
@@ -21,6 +22,8 @@ export function createApp() {
       service: "wasal-server"
     });
   });
+
+  app.use("/api/users", usersRoutes);
 
   return app;
 }
