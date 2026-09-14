@@ -65,25 +65,19 @@ describe("Socket call signaling", () => {
 
     const port = address.port;
 
-    caller = createClient(
-      `http://127.0.0.1:${port}`,
-      {
-        auth: {
-          token: "caller-1",
-        },
-        transports: ["websocket"],
+    caller = createClient(`http://127.0.0.1:${port}`, {
+      auth: {
+        token: "caller-1",
       },
-    );
+      transports: ["websocket"],
+    });
 
-    receiver = createClient(
-      `http://127.0.0.1:${port}`,
-      {
-        auth: {
-          token: "receiver-1",
-        },
-        transports: ["websocket"],
+    receiver = createClient(`http://127.0.0.1:${port}`, {
+      auth: {
+        token: "receiver-1",
       },
-    );
+      transports: ["websocket"],
+    });
 
     await Promise.all([
       new Promise<void>((resolve, reject) => {
@@ -113,15 +107,12 @@ describe("Socket call signaling", () => {
       throw new Error("SERVER_ADDRESS_UNAVAILABLE");
     }
 
-    attacker = createClient(
-      `http://127.0.0.1:${address.port}`,
-      {
-        auth: {
-          token: "attacker-1",
-        },
-        transports: ["websocket"],
+    attacker = createClient(`http://127.0.0.1:${address.port}`, {
+      auth: {
+        token: "attacker-1",
       },
-    );
+      transports: ["websocket"],
+    });
 
     await new Promise<void>((resolve, reject) => {
       attacker!.once("connect", () => resolve());
@@ -466,5 +457,41 @@ describe("Socket call signaling", () => {
         });
       },
     );
+  });
+
+  it("marks an unanswered call as missed after the ringing timeout", async () => {
+    await createConnectedClients();
+
+    const incomingCall = new Promise<{
+      callId: string;
+      callerId: string;
+      receiverId: string;
+      type: string;
+      status: string;
+    }>((resolve) => {
+      receiver!.once("call:incoming", resolve);
+    });
+
+    const missedCall = new Promise<{
+      callId: string;
+      userId: string;
+    }>((resolve) => {
+      caller!.once("call:end", resolve);
+    });
+
+    caller!.emit("call:start", {
+      receiverId: "receiver-1",
+      type: "audio",
+    });
+
+    const call = await incomingCall;
+
+    expect(call.callId).toBeTruthy();
+    expect(call.status).toBe("ringing");
+
+    const missed = await missedCall;
+
+    expect(missed.callId).toBe(call.callId);
+    expect(missed.userId).toBe("system");
   });
 });
