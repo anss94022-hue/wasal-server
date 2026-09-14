@@ -2,6 +2,7 @@ import http from "node:http";
 import { Server } from "socket.io";
 import { createApp } from "./app.js";
 import { env } from "./config/env.js";
+import { setupSocket } from "./realtime/socket.js";
 
 const app = createApp();
 const httpServer = http.createServer(app);
@@ -15,14 +16,10 @@ const io = new Server(httpServer, {
   }
 });
 
-io.on("connection", (socket) => {
-  console.log(`Socket connected: ${socket.id}`);
-
-  socket.on("disconnect", () => {
-    console.log(`Socket disconnected: ${socket.id}`);
-  });
-});
+setupSocket(io);
 
 httpServer.listen(env.port, () => {
-  console.log(`Wasal server running on port ${env.port}`);
+  console.log(
+    `Wasal server running on port ${env.port}`
+  );
 });
