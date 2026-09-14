@@ -1,4 +1,5 @@
 export const CALL_EVENTS = {
+  STARTED: "call:started",
   INCOMING: "call:incoming",
   ACCEPT: "call:accept",
   REJECT: "call:reject",
