@@ -13,8 +13,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      NODE_ENV: test
+      PORT: 3000
       JWT_SECRET: test-secret-for-ci
-      DATABASE_URL: postgresql://test:test@localhost:5432/test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wasal_test
 
     steps:
       - name: Checkout repository
