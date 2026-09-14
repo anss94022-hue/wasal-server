@@ -38,7 +38,10 @@ describe("Socket call signaling", () => {
     httpServer = undefined;
   });
 
-  it("sends an incoming call to the receiver", async () => {
+  async function createConnectedClients(): Promise<{
+    caller: Socket;
+    receiver: Socket;
+  }> {
     httpServer = createServer();
 
     ioServer = new Server(httpServer, {
@@ -90,6 +93,13 @@ describe("Socket call signaling", () => {
       }),
     ]);
 
+    return {
+      caller,
+      receiver,
+    };
+  }
+
+  async function startAudioCall(): Promise<string> {
     const incomingCall = new Promise<{
       callId: string;
       callerId: string;
@@ -100,7 +110,7 @@ describe("Socket call signaling", () => {
       receiver!.once("call:incoming", resolve);
     });
 
-    caller.emit("call:start", {
+    caller!.emit("call:start", {
       receiverId: "receiver-1",
       type: "audio",
     });
@@ -112,5 +122,73 @@ describe("Socket call signaling", () => {
     expect(call.receiverId).toBe("receiver-1");
     expect(call.type).toBe("audio");
     expect(call.status).toBe("ringing");
+
+    return call.callId;
+  }
+
+  it("sends an incoming call to the receiver", async () => {
+    await createConnectedClients();
+
+    await startAudioCall();
+  });
+
+  it("notifies the caller when the receiver accepts", async () => {
+    await createConnectedClients();
+
+    const callId = await startAudioCall();
+
+    const accepted = new Promise<{
+      callId: string;
+      userId: string;
+    }>((resolve) => {
+      caller!.once("call:accept", resolve);
+    });
+
+    receiver!.emit("call:accept", callId);
+
+    const event = await accepted;
+
+    expect(event.callId).toBe(callId);
+    expect(event.userId).toBe("receiver-1");
+  });
+
+  it("notifies the caller when the receiver rejects", async () => {
+    await createConnectedClients();
+
+    const callId = await startAudioCall();
+
+    const rejected = new Promise<{
+      callId: string;
+      userId: string;
+    }>((resolve) => {
+      caller!.once("call:reject", resolve);
+    });
+
+    receiver!.emit("call:reject", callId);
+
+    const event = await rejected;
+
+    expect(event.callId).toBe(callId);
+    expect(event.userId).toBe("receiver-1");
+  });
+
+  it("notifies the receiver when the caller ends the call", async () => {
+    await createConnectedClients();
+
+    const callId = await startAudioCall();
+
+    const ended = new Promise<{
+      callId: string;
+      userId: string;
+    }>((resolve) => {
+      receiver!.once("call:end", resolve);
+    });
+
+    caller!.emit("call:end", callId);
+
+    const event = await ended;
+
+    expect(event.callId).toBe(callId);
+    expect(event.userId).toBe("caller-1");
   });
 });
