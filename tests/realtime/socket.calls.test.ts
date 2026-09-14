@@ -191,4 +191,106 @@ describe("Socket call signaling", () => {
     expect(event.callId).toBe(callId);
     expect(event.userId).toBe("caller-1");
   });
+
+  it("forwards a WebRTC offer from the caller to the receiver", async () => {
+    await createConnectedClients();
+
+    const callId = await startAudioCall();
+
+    const offerReceived = new Promise<{
+      callId: string;
+      callerId: string;
+      receiverId: string;
+      type: string;
+      offer: {
+        type: string;
+        sdp: string;
+      };
+    }>((resolve) => {
+      receiver!.once("call:offer", resolve);
+    });
+
+    caller!.emit("call:offer", {
+      callId,
+      callerId: "caller-1",
+      receiverId: "receiver-1",
+      type: "audio",
+      offer: {
+        type: "offer",
+        sdp: "test-offer-sdp",
+      },
+    });
+
+    const event = await offerReceived;
+
+    expect(event.callId).toBe(callId);
+    expect(event.callerId).toBe("caller-1");
+    expect(event.receiverId).toBe("receiver-1");
+    expect(event.type).toBe("audio");
+    expect(event.offer.type).toBe("offer");
+    expect(event.offer.sdp).toBe("test-offer-sdp");
+  });
+
+  it("forwards a WebRTC answer from the receiver to the caller", async () => {
+    await createConnectedClients();
+
+    const callId = await startAudioCall();
+
+    const answerReceived = new Promise<{
+      callId: string;
+      answer: {
+        type: string;
+        sdp: string;
+      };
+    }>((resolve) => {
+      caller!.once("call:answer", resolve);
+    });
+
+    receiver!.emit("call:answer", {
+      callId,
+      answer: {
+        type: "answer",
+        sdp: "test-answer-sdp",
+      },
+    });
+
+    const event = await answerReceived;
+
+    expect(event.callId).toBe(callId);
+    expect(event.answer.type).toBe("answer");
+    expect(event.answer.sdp).toBe("test-answer-sdp");
+  });
+
+  it("forwards an ICE candidate to the other participant", async () => {
+    await createConnectedClients();
+
+    const callId = await startAudioCall();
+
+    const candidateReceived = new Promise<{
+      callId: string;
+      candidate: {
+        candidate: string;
+        sdpMid: string;
+        sdpMLineIndex: number;
+      };
+    }>((resolve) => {
+      receiver!.once("call:ice-candidate", resolve);
+    });
+
+    caller!.emit("call:ice-candidate", {
+      callId,
+      candidate: {
+        candidate: "candidate:test",
+        sdpMid: "0",
+        sdpMLineIndex: 0,
+      },
+    });
+
+    const event = await candidateReceived;
+
+    expect(event.callId).toBe(callId);
+    expect(event.candidate.candidate).toBe("candidate:test");
+    expect(event.candidate.sdpMid).toBe("0");
+    expect(event.candidate.sdpMLineIndex).toBe(0);
+  });
 });
