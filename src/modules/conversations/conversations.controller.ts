@@ -38,7 +38,8 @@ export async function createPrivateConversationController(
       conversation
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "";
+    const message =
+      error instanceof Error ? error.message : "";
 
     if (message === "CANNOT_CHAT_WITH_SELF") {
       res.status(400).json({
@@ -58,9 +59,19 @@ export async function getConversationController(
   res: Response
 ): Promise<void> {
   try {
-    const conversation = await getConversationById(
-      req.params.id
+    const conversationId = String(
+      req.params.id ?? ""
     );
+
+    if (!conversationId) {
+      res.status(400).json({
+        error: "CONVERSATION_ID_REQUIRED"
+      });
+      return;
+    }
+
+    const conversation =
+      await getConversationById(conversationId);
 
     if (!conversation) {
       res.status(404).json({
