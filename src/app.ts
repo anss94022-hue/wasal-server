@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import authRoutes from "./modules/auth/auth.routes.js";
 import usersRoutes from "./modules/users/users.routes.js";
+import conversationsRoutes from "./modules/conversations/conversations.routes.js";
 import { requireAuth } from "./middleware/auth.js";
 
 export function createApp() {
@@ -27,6 +28,11 @@ export function createApp() {
 
   app.use("/api/auth", authRoutes);
   app.use("/api/users", requireAuth, usersRoutes);
+  app.use(
+    "/api/conversations",
+    requireAuth,
+    conversationsRoutes
+  );
 
   return app;
 }
