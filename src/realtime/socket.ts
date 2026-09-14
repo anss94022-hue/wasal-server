@@ -13,6 +13,21 @@ interface AuthenticatedSocket extends Socket {
   userId?: string;
 }
 
+const CALL_RING_TIMEOUT_MS = 30_000;
+
+const callTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function clearCallTimer(callId: string): void {
+  const timer = callTimers.get(callId);
+
+  if (!timer) {
+    return;
+  }
+
+  clearTimeout(timer);
+  callTimers.delete(callId);
+}
+
 export function setupSocket(io: Server): void {
   io.use((socket: AuthenticatedSocket, next) => {
     try {
@@ -122,6 +137,55 @@ export function setupSocket(io: Server): void {
               createdAt: call.createdAt,
             }
           );
+
+          // Automatically mark the call as missed
+          // if the receiver does not answer within 30 seconds.
+          const timer = setTimeout(() => {
+            const currentCall = callStore.get(call.callId);
+
+            if (!currentCall) {
+              clearCallTimer(call.callId);
+              return;
+            }
+
+            if (currentCall.status !== "ringing") {
+              clearCallTimer(call.callId);
+              return;
+            }
+
+            const missedCall = callStore.updateStatus(
+              call.callId,
+              "missed"
+            );
+
+            if (!missedCall) {
+              clearCallTimer(call.callId);
+              return;
+            }
+
+            io.to(`user:${missedCall.callerId}`).emit(
+              CALL_EVENTS.END,
+              {
+                callId: missedCall.callId,
+                userId: missedCall.receiverId,
+                reason: "missed",
+              }
+            );
+
+            io.to(`user:${missedCall.receiverId}`).emit(
+              CALL_EVENTS.END,
+              {
+                callId: missedCall.callId,
+                userId: missedCall.callerId,
+                reason: "missed",
+              }
+            );
+
+            callStore.delete(call.callId);
+            clearCallTimer(call.callId);
+          }, CALL_RING_TIMEOUT_MS);
+
+          callTimers.set(call.callId, timer);
         } catch {
           socket.emit("call:error", {
             code: "CALL_START_FAILED",
@@ -140,6 +204,8 @@ export function setupSocket(io: Server): void {
       if (!call || call.receiverId !== userId) {
         return;
       }
+
+      clearCallTimer(callId);
 
       const updatedCall = callStore.updateStatus(
         callId,
@@ -169,6 +235,8 @@ export function setupSocket(io: Server): void {
       if (!call || call.receiverId !== userId) {
         return;
       }
+
+      clearCallTimer(callId);
 
       const updatedCall = callStore.updateStatus(
         callId,
@@ -208,6 +276,8 @@ export function setupSocket(io: Server): void {
         return;
       }
 
+      clearCallTimer(callId);
+
       const updatedCall = callStore.updateStatus(
         callId,
         "ended"
@@ -227,6 +297,7 @@ export function setupSocket(io: Server): void {
         {
           callId: updatedCall.callId,
           userId,
+          reason: "ended",
         }
       );
 
