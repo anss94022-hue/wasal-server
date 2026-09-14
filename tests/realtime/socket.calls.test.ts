@@ -19,6 +19,8 @@ describe("Socket call signaling", () => {
   let attacker: Socket | undefined;
 
   afterEach(async () => {
+    vi.useRealTimers();
+
     caller?.disconnect();
     receiver?.disconnect();
     attacker?.disconnect();
@@ -543,6 +545,8 @@ describe("Socket call signaling", () => {
   it("marks an unanswered call as missed after the ringing timeout", async () => {
     await createConnectedClients();
 
+    vi.useFakeTimers();
+
     const incomingCall = new Promise<{
       callId: string;
       callerId: string;
@@ -569,6 +573,8 @@ describe("Socket call signaling", () => {
 
     expect(call.callId).toBeTruthy();
     expect(call.status).toBe("ringing");
+
+    await vi.advanceTimersByTimeAsync(30000);
 
     const missed = await missedCall;
 
