@@ -16,10 +16,12 @@ describe("Socket call signaling", () => {
   let ioServer: Server | undefined;
   let caller: Socket | undefined;
   let receiver: Socket | undefined;
+  let attacker: Socket | undefined;
 
   afterEach(async () => {
     caller?.disconnect();
     receiver?.disconnect();
+    attacker?.disconnect();
 
     ioServer?.close();
 
@@ -34,6 +36,7 @@ describe("Socket call signaling", () => {
 
     caller = undefined;
     receiver = undefined;
+    attacker = undefined;
     ioServer = undefined;
     httpServer = undefined;
   });
@@ -99,6 +102,35 @@ describe("Socket call signaling", () => {
     };
   }
 
+  async function createAttacker(): Promise<Socket> {
+    if (!httpServer) {
+      throw new Error("SERVER_NOT_STARTED");
+    }
+
+    const address = httpServer.address();
+
+    if (!address || typeof address === "string") {
+      throw new Error("SERVER_ADDRESS_UNAVAILABLE");
+    }
+
+    attacker = createClient(
+      `http://127.0.0.1:${address.port}`,
+      {
+        auth: {
+          token: "attacker-1",
+        },
+        transports: ["websocket"],
+      },
+    );
+
+    await new Promise<void>((resolve, reject) => {
+      attacker!.once("connect", () => resolve());
+      attacker!.once("connect_error", reject);
+    });
+
+    return attacker;
+  }
+
   async function startAudioCall(): Promise<string> {
     const incomingCall = new Promise<{
       callId: string;
@@ -124,6 +156,37 @@ describe("Socket call signaling", () => {
     expect(call.status).toBe("ringing");
 
     return call.callId;
+  }
+
+  function expectNoEvent(
+    socket: Socket,
+    eventName: string,
+    trigger: () => void,
+  ): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      let received = false;
+
+      const handler = () => {
+        received = true;
+      };
+
+      socket.once(eventName, handler);
+
+      trigger();
+
+      setTimeout(() => {
+        socket.off(eventName, handler);
+
+        if (received) {
+          reject(
+            new Error(`UNAUTHORIZED_EVENT_RECEIVED:${eventName}`),
+          );
+          return;
+        }
+
+        resolve();
+      }, 150);
+    });
   }
 
   it("sends an incoming call to the receiver", async () => {
@@ -292,5 +355,116 @@ describe("Socket call signaling", () => {
     expect(event.candidate.candidate).toBe("candidate:test");
     expect(event.candidate.sdpMid).toBe("0");
     expect(event.candidate.sdpMLineIndex).toBe(0);
+  });
+
+  it("does not allow a different user to accept the call", async () => {
+    await createConnectedClients();
+    await createAttacker();
+
+    const callId = await startAudioCall();
+
+    await expectNoEvent(
+      caller!,
+      "call:accept",
+      () => {
+        attacker!.emit("call:accept", callId);
+      },
+    );
+  });
+
+  it("does not allow a different user to reject the call", async () => {
+    await createConnectedClients();
+    await createAttacker();
+
+    const callId = await startAudioCall();
+
+    await expectNoEvent(
+      caller!,
+      "call:reject",
+      () => {
+        attacker!.emit("call:reject", callId);
+      },
+    );
+  });
+
+  it("does not allow a different user to end the call", async () => {
+    await createConnectedClients();
+    await createAttacker();
+
+    const callId = await startAudioCall();
+
+    await expectNoEvent(
+      receiver!,
+      "call:end",
+      () => {
+        attacker!.emit("call:end", callId);
+      },
+    );
+  });
+
+  it("does not allow a different user to send a WebRTC offer", async () => {
+    await createConnectedClients();
+    await createAttacker();
+
+    const callId = await startAudioCall();
+
+    await expectNoEvent(
+      receiver!,
+      "call:offer",
+      () => {
+        attacker!.emit("call:offer", {
+          callId,
+          callerId: "attacker-1",
+          receiverId: "receiver-1",
+          type: "audio",
+          offer: {
+            type: "offer",
+            sdp: "unauthorized-offer",
+          },
+        });
+      },
+    );
+  });
+
+  it("does not allow the caller to send a WebRTC answer", async () => {
+    await createConnectedClients();
+
+    const callId = await startAudioCall();
+
+    await expectNoEvent(
+      caller!,
+      "call:answer",
+      () => {
+        caller!.emit("call:answer", {
+          callId,
+          answer: {
+            type: "answer",
+            sdp: "unauthorized-answer",
+          },
+        });
+      },
+    );
+  });
+
+  it("does not allow a different user to send an ICE candidate", async () => {
+    await createConnectedClients();
+    await createAttacker();
+
+    const callId = await startAudioCall();
+
+    await expectNoEvent(
+      receiver!,
+      "call:ice-candidate",
+      () => {
+        attacker!.emit("call:ice-candidate", {
+          callId,
+          candidate: {
+            candidate: "unauthorized-candidate",
+            sdpMid: "0",
+            sdpMLineIndex: 0,
+          },
+        });
+      },
+    );
   });
 });
