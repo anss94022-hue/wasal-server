@@ -75,11 +75,22 @@ export async function getMessagesController(
       return;
     }
 
+    const conversationId = String(
+      req.params.conversationId ?? ""
+    );
+
+    if (!conversationId) {
+      res.status(400).json({
+        error: "CONVERSATION_ID_REQUIRED"
+      });
+      return;
+    }
+
     const limit = Number(req.query.limit ?? 50);
 
     const messages = await getMessages(
       req.userId,
-      req.params.conversationId,
+      conversationId,
       Number.isFinite(limit) ? limit : 50
     );
 
@@ -115,9 +126,18 @@ export async function getMessageByIdController(
       return;
     }
 
+    const messageId = String(req.params.id ?? "");
+
+    if (!messageId) {
+      res.status(400).json({
+        error: "MESSAGE_ID_REQUIRED"
+      });
+      return;
+    }
+
     const message = await getMessageById(
       req.userId,
-      req.params.id
+      messageId
     );
 
     res.status(200).json({
