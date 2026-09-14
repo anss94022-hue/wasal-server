@@ -7,6 +7,18 @@ export type CallStatus =
   | "ended"
   | "missed";
 
+export interface RTCSessionDescriptionData {
+  type: "offer" | "answer" | "pranswer" | "rollback";
+  sdp?: string;
+}
+
+export interface RTCIceCandidateData {
+  candidate?: string;
+  sdpMid?: string | null;
+  sdpMLineIndex?: number | null;
+  usernameFragment?: string | null;
+}
+
 export interface CallSession {
   callId: string;
   callerId: string;
@@ -23,15 +35,15 @@ export interface CallOffer {
   callerId: string;
   receiverId: string;
   type: CallType;
-  offer: RTCSessionDescriptionInit;
+  offer: RTCSessionDescriptionData;
 }
 
 export interface CallAnswer {
   callId: string;
-  answer: RTCSessionDescriptionInit;
+  answer: RTCSessionDescriptionData;
 }
 
 export interface IceCandidate {
   callId: string;
-  candidate: RTCIceCandidateInit;
+  candidate: RTCIceCandidateData;
 }
