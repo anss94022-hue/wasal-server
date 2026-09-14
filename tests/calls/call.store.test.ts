@@ -47,6 +47,25 @@ describe("CallStore", () => {
 
     expect(updated?.status).toBe("accepted");
     expect(updated?.answeredAt).toBeInstanceOf(Date);
+    expect(updated?.endedAt).toBeUndefined();
+  });
+
+  it("updates a call to rejected", () => {
+    const store = new CallStore();
+
+    const call = store.create(
+      "caller-1",
+      "receiver-1",
+      "audio",
+    );
+
+    const updated = store.updateStatus(
+      call.callId,
+      "rejected",
+    );
+
+    expect(updated?.status).toBe("rejected");
+    expect(updated?.endedAt).toBeInstanceOf(Date);
   });
 
   it("updates a call to ended", () => {
@@ -67,11 +86,40 @@ describe("CallStore", () => {
     expect(updated?.endedAt).toBeInstanceOf(Date);
   });
 
+  it("updates a call to missed", () => {
+    const store = new CallStore();
+
+    const call = store.create(
+      "caller-1",
+      "receiver-1",
+      "video",
+    );
+
+    const updated = store.updateStatus(
+      call.callId,
+      "missed",
+    );
+
+    expect(updated?.status).toBe("missed");
+    expect(updated?.endedAt).toBeInstanceOf(Date);
+  });
+
   it("returns undefined for an unknown call", () => {
     const store = new CallStore();
 
     expect(
       store.get("unknown-call"),
+    ).toBeUndefined();
+  });
+
+  it("returns undefined when updating an unknown call", () => {
+    const store = new CallStore();
+
+    expect(
+      store.updateStatus(
+        "unknown-call",
+        "accepted",
+      ),
     ).toBeUndefined();
   });
 
@@ -86,5 +134,13 @@ describe("CallStore", () => {
 
     expect(store.delete(call.callId)).toBe(true);
     expect(store.get(call.callId)).toBeUndefined();
+  });
+
+  it("returns false when deleting an unknown call", () => {
+    const store = new CallStore();
+
+    expect(
+      store.delete("unknown-call"),
+    ).toBe(false);
   });
 });
