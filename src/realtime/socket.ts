@@ -42,9 +42,11 @@ export function setupSocket(io: Server): void {
 
     socket.join(`user:${userId}`);
 
-    console.log(
-      `User ${userId} connected via socket`
-    );
+    console.log(`User ${userId} connected via socket`);
+
+    // =========================
+    // Conversation
+    // =========================
 
     socket.on("join_conversation", (conversationId: string) => {
       if (!conversationId) {
@@ -67,13 +69,10 @@ export function setupSocket(io: Server): void {
         return;
       }
 
-      socket.to(`conversation:${conversationId}`).emit(
-        "typing",
-        {
-          conversationId,
-          userId,
-        }
-      );
+      socket.to(`conversation:${conversationId}`).emit("typing", {
+        conversationId,
+        userId,
+      });
     });
 
     socket.on("stop_typing", (conversationId: string) => {
@@ -81,14 +80,15 @@ export function setupSocket(io: Server): void {
         return;
       }
 
-      socket.to(`conversation:${conversationId}`).emit(
-        "stop_typing",
-        {
-          conversationId,
-          userId,
-        }
-      );
+      socket.to(`conversation:${conversationId}`).emit("stop_typing", {
+        conversationId,
+        userId,
+      });
     });
+
+    // =========================
+    // Start Call
+    // =========================
 
     socket.on(
       "call:start",
@@ -100,10 +100,7 @@ export function setupSocket(io: Server): void {
           return;
         }
 
-        if (
-          data.type !== "audio" &&
-          data.type !== "video"
-        ) {
+        if (data.type !== "audio" && data.type !== "video") {
           return;
         }
 
@@ -133,105 +130,112 @@ export function setupSocket(io: Server): void {
       }
     );
 
-    socket.on(
-      CALL_EVENTS.ACCEPT,
-      (callId: string) => {
-        const call = callStore.get(callId);
+    // =========================
+    // Accept Call
+    // =========================
 
-        if (!call || call.receiverId !== userId) {
-          return;
-        }
+    socket.on(CALL_EVENTS.ACCEPT, (callId: string) => {
+      const call = callStore.get(callId);
 
-        const updatedCall = callStore.updateStatus(
-          callId,
-          "accepted"
-        );
-
-        if (!updatedCall) {
-          return;
-        }
-
-        io.to(`user:${updatedCall.callerId}`).emit(
-          CALL_EVENTS.ACCEPT,
-          {
-            callId: updatedCall.callId,
-            userId,
-          }
-        );
+      if (!call || call.receiverId !== userId) {
+        return;
       }
-    );
 
-    socket.on(
-      CALL_EVENTS.REJECT,
-      (callId: string) => {
-        const call = callStore.get(callId);
+      const updatedCall = callStore.updateStatus(
+        callId,
+        "accepted"
+      );
 
-        if (!call || call.receiverId !== userId) {
-          return;
-        }
-
-        const updatedCall = callStore.updateStatus(
-          callId,
-          "rejected"
-        );
-
-        if (!updatedCall) {
-          return;
-        }
-
-        io.to(`user:${updatedCall.callerId}`).emit(
-          CALL_EVENTS.REJECT,
-          {
-            callId: updatedCall.callId,
-            userId,
-          }
-        );
-
-        callStore.delete(callId);
+      if (!updatedCall) {
+        return;
       }
-    );
 
-    socket.on(
-      CALL_EVENTS.END,
-      (callId: string) => {
-        const call = callStore.get(callId);
-
-        if (!call) {
-          return;
+      io.to(`user:${updatedCall.callerId}`).emit(
+        CALL_EVENTS.ACCEPT,
+        {
+          callId: updatedCall.callId,
+          userId,
         }
+      );
+    });
 
-        if (
-          call.callerId !== userId &&
-          call.receiverId !== userId
-        ) {
-          return;
-        }
+    // =========================
+    // Reject Call
+    // =========================
 
-        const updatedCall = callStore.updateStatus(
-          callId,
-          "ended"
-        );
+    socket.on(CALL_EVENTS.REJECT, (callId: string) => {
+      const call = callStore.get(callId);
 
-        if (!updatedCall) {
-          return;
-        }
-
-        const otherUserId =
-          updatedCall.callerId === userId
-            ? updatedCall.receiverId
-            : updatedCall.callerId;
-
-        io.to(`user:${otherUserId}`).emit(
-          CALL_EVENTS.END,
-          {
-            callId: updatedCall.callId,
-            userId,
-          }
-        );
-
-        callStore.delete(callId);
+      if (!call || call.receiverId !== userId) {
+        return;
       }
-    );
+
+      const updatedCall = callStore.updateStatus(
+        callId,
+        "rejected"
+      );
+
+      if (!updatedCall) {
+        return;
+      }
+
+      io.to(`user:${updatedCall.callerId}`).emit(
+        CALL_EVENTS.REJECT,
+        {
+          callId: updatedCall.callId,
+          userId,
+        }
+      );
+
+      callStore.delete(callId);
+    });
+
+    // =========================
+    // End Call
+    // =========================
+
+    socket.on(CALL_EVENTS.END, (callId: string) => {
+      const call = callStore.get(callId);
+
+      if (!call) {
+        return;
+      }
+
+      if (
+        call.callerId !== userId &&
+        call.receiverId !== userId
+      ) {
+        return;
+      }
+
+      const updatedCall = callStore.updateStatus(
+        callId,
+        "ended"
+      );
+
+      if (!updatedCall) {
+        return;
+      }
+
+      const otherUserId =
+        updatedCall.callerId === userId
+          ? updatedCall.receiverId
+          : updatedCall.callerId;
+
+      io.to(`user:${otherUserId}`).emit(
+        CALL_EVENTS.END,
+        {
+          callId: updatedCall.callId,
+          userId,
+        }
+      );
+
+      callStore.delete(callId);
+    });
+
+    // =========================
+    // WebRTC Offer
+    // =========================
 
     socket.on(
       CALL_EVENTS.OFFER,
@@ -262,6 +266,10 @@ export function setupSocket(io: Server): void {
       }
     );
 
+    // =========================
+    // WebRTC Answer
+    // =========================
+
     socket.on(
       CALL_EVENTS.ANSWER,
       (data: CallAnswer) => {
@@ -280,6 +288,10 @@ export function setupSocket(io: Server): void {
         );
       }
     );
+
+    // =========================
+    // WebRTC ICE Candidate
+    // =========================
 
     socket.on(
       CALL_EVENTS.ICE_CANDIDATE,
@@ -312,6 +324,10 @@ export function setupSocket(io: Server): void {
         );
       }
     );
+
+    // =========================
+    // Disconnect
+    // =========================
 
     socket.on("disconnect", () => {
       console.log(
