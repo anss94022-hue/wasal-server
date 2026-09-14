@@ -226,6 +226,17 @@ export function setupSocket(io: Server): void {
           payload.type,
         );
 
+        io.to(`user:${call.callerId}`).emit(
+          CALL_EVENTS.STARTED,
+          {
+            callId: call.callId,
+            callerId: call.callerId,
+            receiverId: call.receiverId,
+            type: call.type,
+            status: call.status,
+          },
+        );
+
         io.to(`user:${call.receiverId}`).emit(
           CALL_EVENTS.INCOMING,
           {
@@ -424,7 +435,10 @@ export function setupSocket(io: Server): void {
 
         const call = callStore.get(payload.callId);
 
-        if (!call || !isCallParticipant(payload.callId, userId)) {
+        if (
+          !call ||
+          !isCallParticipant(payload.callId, userId)
+        ) {
           return;
         }
 
