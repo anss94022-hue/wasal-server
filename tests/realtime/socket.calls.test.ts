@@ -188,7 +188,33 @@ describe("Socket call signaling", () => {
     await startAudioCall();
   });
 
-  it("notifies the caller when the receiver accepts", async () => {
+  it("sends an incoming video call to the receiver", async () => {
+  await createConnectedClients();
+
+  const incomingCall = new Promise<{
+    callId: string;
+    callerId: string;
+    receiverId: string;
+    type: string;
+    status: string;
+  }>((resolve) => {
+    receiver!.once("call:incoming", resolve);
+  });
+
+  caller!.emit("call:start", {
+    receiverId: "receiver-1",
+    type: "video",
+  });
+
+  const call = await incomingCall;
+
+  expect(call.callId).toBeTruthy();
+  expect(call.callerId).toBe("caller-1");
+  expect(call.receiverId).toBe("receiver-1");
+  expect(call.type).toBe("video");
+  expect(call.status).toBe("ringing");
+});
+it("notifies the caller when the receiver accepts", async () => {
     await createConnectedClients();
 
     const callId = await startAudioCall();
