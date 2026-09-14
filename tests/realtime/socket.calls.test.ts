@@ -19,6 +19,8 @@ describe("Socket call signaling", () => {
   let attacker: Socket | undefined;
 
   afterEach(async () => {
+    vi.useRealTimers();
+
     caller?.disconnect();
     receiver?.disconnect();
     attacker?.disconnect();
@@ -479,6 +481,8 @@ describe("Socket call signaling", () => {
       caller!.once("call:end", resolve);
     });
 
+    vi.useFakeTimers();
+
     caller!.emit("call:start", {
       receiverId: "receiver-1",
       type: "audio",
@@ -488,6 +492,8 @@ describe("Socket call signaling", () => {
 
     expect(call.callId).toBeTruthy();
     expect(call.status).toBe("ringing");
+
+    await vi.advanceTimersByTimeAsync(30_000);
 
     const missed = await missedCall;
 
