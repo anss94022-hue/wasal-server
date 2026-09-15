@@ -40,5 +40,10 @@ export function createApp() {
     messagesRoutes
   );
 
+  // إضافة مسار المكالمات لتجنب ظهور خطأ Failed في التطبيق
+  app.get("/api/calls", requireAuth, (_req, res) => {
+    res.status(200).json([]);
+  });
+
   return app;
 }
