@@ -29,9 +29,16 @@ export function downloadMedia(
   req: Request,
   res: Response
 ): void {
-  const filename = path.basename(
-    req.params.filename
-  );
+  const rawFilename = req.params.filename;
+
+  if (typeof rawFilename !== "string") {
+    res.status(400).json({
+      error: "INVALID_FILENAME"
+    });
+    return;
+  }
+
+  const filename = path.basename(rawFilename);
 
   const filePath = path.join(
     uploadDir,
