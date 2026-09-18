@@ -4,6 +4,7 @@ import authRoutes from "./modules/auth/auth.routes.js";
 import usersRoutes from "./modules/users/users.routes.js";
 import conversationsRoutes from "./modules/conversations/conversations.routes.js";
 import messagesRoutes from "./modules/messages/messages.routes.js";
+import mediaRoutes from "./modules/media/media.routes.js";
 import { requireAuth } from "./middleware/auth.js";
 
 export function createApp() {
@@ -28,22 +29,38 @@ export function createApp() {
   });
 
   app.use("/api/auth", authRoutes);
-  app.use("/api/users", requireAuth, usersRoutes);
+
+  app.use(
+    "/api/users",
+    requireAuth,
+    usersRoutes
+  );
+
   app.use(
     "/api/conversations",
     requireAuth,
     conversationsRoutes
   );
+
   app.use(
     "/api/messages",
     requireAuth,
     messagesRoutes
   );
 
-  // إضافة مسار المكالمات لتجنب ظهور خطأ Failed في التطبيق
-  app.get("/api/calls", requireAuth, (_req, res) => {
-    res.status(200).json([]);
-  });
+  app.get(
+    "/api/calls",
+    requireAuth,
+    (_req, res) => {
+      res.status(200).json([]);
+    }
+  );
+
+  app.use(
+    "/api/media",
+    requireAuth,
+    mediaRoutes
+  );
 
   return app;
 }
