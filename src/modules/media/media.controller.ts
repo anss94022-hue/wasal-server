@@ -15,15 +15,13 @@ export function uploadMedia(
     return;
   }
 
-  const fileUrl = `/api/media/${req.file.filename}`;
-
   res.status(201).json({
     success: true,
     filename: req.file.filename,
     originalName: req.file.originalname,
     mimeType: req.file.mimetype,
     size: req.file.size,
-    url: fileUrl
+    url: `/api/media/${req.file.filename}`
   });
 }
 
@@ -31,8 +29,14 @@ export function downloadMedia(
   req: Request,
   res: Response
 ): void {
-  const filename = path.basename(req.params.filename);
-  const filePath = path.join(uploadDir, filename);
+  const filename = path.basename(
+    req.params.filename
+  );
+
+  const filePath = path.join(
+    uploadDir,
+    filename
+  );
 
   if (!fs.existsSync(filePath)) {
     res.status(404).json({
