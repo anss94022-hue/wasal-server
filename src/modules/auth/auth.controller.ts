@@ -1,16 +1,31 @@
 import { Request, Response } from "express";
-import { login, register } from "./auth.service.js";
+
+import {
+  register,
+  login,
+} from "./auth.service.js";
 
 export async function registerController(
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> {
   try {
-    const { phone, username, displayName, password } = req.body;
+    const {
+      phone,
+      username,
+      displayName,
+      password,
+    } = req.body;
 
-    if (!phone || !displayName || !password) {
+    if (
+      !phone ||
+      !displayName ||
+      !password
+    ) {
       res.status(400).json({
-        error: "PHONE_DISPLAY_NAME_PASSWORD_REQUIRED"
+        success: false,
+        error:
+          "PHONE_DISPLAY_NAME_PASSWORD_REQUIRED",
       });
       return;
     }
@@ -19,59 +34,90 @@ export async function registerController(
       phone,
       username,
       displayName,
-      password
+      password,
     });
 
-    res.status(201).json(result);
+    res.status(201).json({
+      success: true,
+      ...result,
+    });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "";
+    const message =
+      error instanceof Error
+        ? error.message
+        : "";
 
     if (
-      message === "PHONE_ALREADY_REGISTERED" ||
-      message === "USERNAME_ALREADY_TAKEN"
+      message ===
+        "PHONE_ALREADY_REGISTERED" ||
+      message ===
+        "USERNAME_ALREADY_TAKEN"
     ) {
-      res.status(409).json({ error: message });
+      res.status(409).json({
+        success: false,
+        error: message,
+      });
       return;
     }
 
     res.status(500).json({
-      error: "INTERNAL_SERVER_ERROR"
+      success: false,
+      error:
+        "INTERNAL_SERVER_ERROR",
     });
   }
 }
 
 export async function loginController(
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> {
   try {
-    const { phone, password } = req.body;
+    const {
+      phone,
+      password,
+    } = req.body;
 
     if (!phone || !password) {
       res.status(400).json({
-        error: "PHONE_PASSWORD_REQUIRED"
+        success: false,
+        error:
+          "PHONE_PASSWORD_REQUIRED",
       });
       return;
     }
 
     const result = await login({
       phone,
-      password
+      password,
     });
 
-    res.status(200).json(result);
+    res.status(200).json({
+      success: true,
+      ...result,
+    });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "";
+    const message =
+      error instanceof Error
+        ? error.message
+        : "";
 
-    if (message === "INVALID_CREDENTIALS") {
+    if (
+      message ===
+      "INVALID_CREDENTIALS"
+    ) {
       res.status(401).json({
-        error: "INVALID_CREDENTIALS"
+        success: false,
+        error:
+          "INVALID_CREDENTIALS",
       });
       return;
     }
 
     res.status(500).json({
-      error: "INTERNAL_SERVER_ERROR"
+      success: false,
+      error:
+        "INTERNAL_SERVER_ERROR",
     });
   }
 }
