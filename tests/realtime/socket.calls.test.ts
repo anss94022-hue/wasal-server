@@ -285,7 +285,7 @@ describe("Socket call signaling", () => {
 
     const callId = await startAudioCall();
 
-    caller!.emit("call:accept", callId);
+    receiver!.emit("call:accept", callId);
 
     await new Promise<void>((resolve) =>
       setTimeout(resolve, 20),
@@ -345,7 +345,7 @@ describe("Socket call signaling", () => {
 
     const call = await incomingCall;
 
-    caller!.emit("call:accept", call.callId);
+    receiver!.emit("call:accept", call.callId);
 
     await new Promise<void>((resolve) =>
       setTimeout(resolve, 20),
