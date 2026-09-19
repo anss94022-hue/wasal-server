@@ -578,9 +578,10 @@ export function setupSocket(io: Server): void {
     );
 
     socket.on("disconnect", () => {
-      for (const call of [
-        ...getActiveCallsForUser(userId),
-      ]) {
+      const activeCalls =
+        callStore.getActiveForUser(userId);
+
+      for (const call of activeCalls) {
         clearCallTimer(call.callId);
 
         const endedCall =
@@ -611,37 +612,4 @@ export function setupSocket(io: Server): void {
       }
     });
   });
-}
-
-function getActiveCallsForUser(
-  userId: string,
-) {
-  const calls = [];
-
-  for (const status of [
-    "ringing",
-    "accepted",
-  ] as const) {
-    void status;
-  }
-
-  for (const callId of getKnownCallIds()) {
-    const call = callStore.get(callId);
-
-    if (
-      call &&
-      (call.status === "ringing" ||
-        call.status === "accepted") &&
-      (call.callerId === userId ||
-        call.receiverId === userId)
-    ) {
-      calls.push(call);
-    }
-  }
-
-  return calls;
-}
-
-function getKnownCallIds(): string[] {
-  return [];
 }
