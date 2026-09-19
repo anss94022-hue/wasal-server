@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+
 import type {
   CallSession,
   CallStatus,
@@ -6,7 +7,8 @@ import type {
 } from "./call.types.js";
 
 export class CallStore {
-  private readonly sessions = new Map<string, CallSession>();
+  private readonly sessions =
+    new Map<string, CallSession>();
 
   create(
     callerId: string,
@@ -26,20 +28,38 @@ export class CallStore {
       createdAt: new Date(),
     };
 
-    this.sessions.set(session.callId, session);
+    this.sessions.set(
+      session.callId,
+      session,
+    );
 
     return session;
   }
 
-  get(callId: string): CallSession | undefined {
+  get(
+    callId: string,
+  ): CallSession | undefined {
     return this.sessions.get(callId);
+  }
+
+  getActiveForUser(
+    userId: string,
+  ): CallSession[] {
+    return [...this.sessions.values()].filter(
+      (call) =>
+        (call.status === "ringing" ||
+          call.status === "accepted") &&
+        (call.callerId === userId ||
+          call.receiverId === userId),
+    );
   }
 
   updateStatus(
     callId: string,
     status: CallStatus,
   ): CallSession | undefined {
-    const session = this.sessions.get(callId);
+    const session =
+      this.sessions.get(callId);
 
     if (!session) {
       return undefined;
@@ -67,4 +87,5 @@ export class CallStore {
   }
 }
 
-export const callStore = new CallStore();
+export const callStore =
+  new CallStore();
