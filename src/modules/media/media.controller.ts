@@ -6,11 +6,12 @@ const uploadDir = path.resolve("uploads");
 
 export function uploadMedia(
   req: Request,
-  res: Response
+  res: Response,
 ): void {
   if (!req.file) {
     res.status(400).json({
-      error: "FILE_REQUIRED"
+      success: false,
+      error: "FILE_REQUIRED",
     });
     return;
   }
@@ -21,33 +22,59 @@ export function uploadMedia(
     originalName: req.file.originalname,
     mimeType: req.file.mimetype,
     size: req.file.size,
-    url: `/api/media/${req.file.filename}`
+    url: `/api/media/${encodeURIComponent(
+      req.file.filename,
+    )}`,
   });
 }
 
 export function downloadMedia(
   req: Request,
-  res: Response
+  res: Response,
 ): void {
   const rawFilename = req.params.filename;
 
   if (typeof rawFilename !== "string") {
     res.status(400).json({
-      error: "INVALID_FILENAME"
+      success: false,
+      error: "INVALID_FILENAME",
     });
     return;
   }
 
   const filename = path.basename(rawFilename);
 
+  if (
+    filename !== rawFilename ||
+    filename.length === 0 ||
+    filename.includes("..")
+  ) {
+    res.status(400).json({
+      success: false,
+      error: "INVALID_FILENAME",
+    });
+    return;
+  }
+
   const filePath = path.join(
     uploadDir,
-    filename
+    filename,
   );
 
   if (!fs.existsSync(filePath)) {
     res.status(404).json({
-      error: "FILE_NOT_FOUND"
+      success: false,
+      error: "FILE_NOT_FOUND",
+    });
+    return;
+  }
+
+  const stat = fs.statSync(filePath);
+
+  if (!stat.isFile()) {
+    res.status(404).json({
+      success: false,
+      error: "FILE_NOT_FOUND",
     });
     return;
   }
