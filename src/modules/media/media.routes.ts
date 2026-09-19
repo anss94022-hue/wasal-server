@@ -2,6 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import path from "node:path";
 import fs from "node:fs";
+import { randomUUID } from "node:crypto";
 
 import {
   uploadMedia,
@@ -50,7 +51,7 @@ const storage = multer.diskStorage({
       .replace(/[^a-z0-9.]/g, "");
 
     const filename =
-      `${Date.now()}-${crypto.randomUUID()}` +
+      `${Date.now()}-${randomUUID()}` +
       extension;
 
     cb(null, filename);
