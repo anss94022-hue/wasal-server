@@ -1,4 +1,6 @@
-export type CallType = "audio" | "video";
+export type CallType =
+  | "audio"
+  | "video";
 
 export type CallStatus =
   | "ringing"
