@@ -16,7 +16,9 @@ export class CallStore {
     type: CallType,
   ): CallSession {
     if (callerId === receiverId) {
-      throw new Error("CALL_SELF_NOT_ALLOWED");
+      throw new Error(
+        "CALL_SELF_NOT_ALLOWED",
+      );
     }
 
     const session: CallSession = {
@@ -45,7 +47,9 @@ export class CallStore {
   getActiveForUser(
     userId: string,
   ): CallSession[] {
-    return [...this.sessions.values()].filter(
+    return [
+      ...this.sessions.values(),
+    ].filter(
       (call) =>
         (call.status === "ringing" ||
           call.status === "accepted") &&
@@ -68,7 +72,8 @@ export class CallStore {
     session.status = status;
 
     if (status === "accepted") {
-      session.answeredAt = new Date();
+      session.answeredAt =
+        new Date();
     }
 
     if (
@@ -76,14 +81,19 @@ export class CallStore {
       status === "ended" ||
       status === "missed"
     ) {
-      session.endedAt = new Date();
+      session.endedAt =
+        new Date();
     }
 
     return session;
   }
 
-  delete(callId: string): boolean {
-    return this.sessions.delete(callId);
+  delete(
+    callId: string,
+  ): boolean {
+    return this.sessions.delete(
+      callId,
+    );
   }
 }
 
