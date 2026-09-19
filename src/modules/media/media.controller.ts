@@ -32,9 +32,13 @@ export function downloadMedia(
   req: Request,
   res: Response,
 ): void {
-  const rawFilename = req.params.filename;
+  const rawFilename =
+    req.params.filename;
 
-  if (typeof rawFilename !== "string") {
+  if (
+    typeof rawFilename !== "string" ||
+    rawFilename.length === 0
+  ) {
     res.status(400).json({
       success: false,
       error: "INVALID_FILENAME",
@@ -42,12 +46,14 @@ export function downloadMedia(
     return;
   }
 
-  const filename = path.basename(rawFilename);
+  const filename =
+    path.basename(rawFilename);
 
   if (
     filename !== rawFilename ||
-    filename.length === 0 ||
-    filename.includes("..")
+    filename.includes("..") ||
+    filename.includes("/") ||
+    filename.includes("\\")
   ) {
     res.status(400).json({
       success: false,
@@ -69,7 +75,8 @@ export function downloadMedia(
     return;
   }
 
-  const stat = fs.statSync(filePath);
+  const stat =
+    fs.statSync(filePath);
 
   if (!stat.isFile()) {
     res.status(404).json({
