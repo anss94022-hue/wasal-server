@@ -109,12 +109,15 @@ describe("Socket call signaling", () => {
       throw new Error("SERVER_ADDRESS_UNAVAILABLE");
     }
 
-    attacker = createClient(`http://127.0.0.1:${address.port}`, {
-      auth: {
-        token: "attacker-1",
+    attacker = createClient(
+      `http://127.0.0.1:${address.port}`,
+      {
+        auth: {
+          token: "attacker-1",
+        },
+        transports: ["websocket"],
       },
-      transports: ["websocket"],
-    });
+    );
 
     await new Promise<void>((resolve, reject) => {
       attacker!.once("connect", () => resolve());
@@ -172,7 +175,9 @@ describe("Socket call signaling", () => {
 
         if (received) {
           reject(
-            new Error(`UNAUTHORIZED_EVENT_RECEIVED:${eventName}`),
+            new Error(
+              `UNAUTHORIZED_EVENT_RECEIVED:${eventName}`,
+            ),
           );
           return;
         }
@@ -280,6 +285,12 @@ describe("Socket call signaling", () => {
 
     const callId = await startAudioCall();
 
+    caller!.emit("call:accept", callId);
+
+    await new Promise<void>((resolve) =>
+      setTimeout(resolve, 20),
+    );
+
     const offerReceived = new Promise<{
       callId: string;
       callerId: string;
@@ -334,6 +345,12 @@ describe("Socket call signaling", () => {
 
     const call = await incomingCall;
 
+    caller!.emit("call:accept", call.callId);
+
+    await new Promise<void>((resolve) =>
+      setTimeout(resolve, 20),
+    );
+
     const offerReceived = new Promise<{
       callId: string;
       callerId: string;
@@ -373,6 +390,12 @@ describe("Socket call signaling", () => {
 
     const callId = await startAudioCall();
 
+    receiver!.emit("call:accept", callId);
+
+    await new Promise<void>((resolve) =>
+      setTimeout(resolve, 20),
+    );
+
     const answerReceived = new Promise<{
       callId: string;
       answer: {
@@ -403,6 +426,12 @@ describe("Socket call signaling", () => {
 
     const callId = await startAudioCall();
 
+    receiver!.emit("call:accept", callId);
+
+    await new Promise<void>((resolve) =>
+      setTimeout(resolve, 20),
+    );
+
     const candidateReceived = new Promise<{
       callId: string;
       candidate: {
@@ -426,7 +455,9 @@ describe("Socket call signaling", () => {
     const event = await candidateReceived;
 
     expect(event.callId).toBe(callId);
-    expect(event.candidate.candidate).toBe("candidate:test");
+    expect(event.candidate.candidate).toBe(
+      "candidate:test",
+    );
     expect(event.candidate.sdpMid).toBe("0");
     expect(event.candidate.sdpMLineIndex).toBe(0);
   });
