@@ -1,44 +1,60 @@
 import { createAuthUser } from "./auth.repository.js";
 import { hashPassword } from "./password.js";
-import { createTokens } from "./tokens.js";
+import {
+  createTokens,
+  verifyRefreshToken,
+} from "./tokens.js";
+
 import {
   findUserByPhone,
-  findUserByUsername
+  findUserByUsername,
 } from "../users/users.repository.js";
+
 import type {
   AuthResponse,
   LoginInput,
-  RegisterInput
+  RegisterInput,
 } from "./auth.types.js";
+
 import { verifyPassword } from "./password.js";
 
 export async function register(
-  input: RegisterInput
+  input: RegisterInput,
 ): Promise<AuthResponse> {
-  const existingPhone = await findUserByPhone(input.phone);
+  const existingPhone =
+    await findUserByPhone(input.phone);
 
   if (existingPhone) {
-    throw new Error("PHONE_ALREADY_REGISTERED");
+    throw new Error(
+      "PHONE_ALREADY_REGISTERED",
+    );
   }
 
   if (input.username) {
-    const existingUsername = await findUserByUsername(input.username);
+    const existingUsername =
+      await findUserByUsername(
+        input.username,
+      );
 
     if (existingUsername) {
-      throw new Error("USERNAME_ALREADY_TAKEN");
+      throw new Error(
+        "USERNAME_ALREADY_TAKEN",
+      );
     }
   }
 
-  const passwordHash = hashPassword(input.password);
+  const passwordHash =
+    hashPassword(input.password);
 
   const user = await createAuthUser(
     input.phone,
     input.username ?? null,
     input.displayName,
-    passwordHash
+    passwordHash,
   );
 
-  const tokens = createTokens(user.id);
+  const tokens =
+    createTokens(user.id);
 
   return {
     user: {
@@ -46,31 +62,38 @@ export async function register(
       phone: user.phone,
       username: user.username,
       displayName: user.displayName,
-      avatarUrl: user.avatarUrl
+      avatarUrl: user.avatarUrl,
     },
-    tokens
+    tokens,
   };
 }
 
 export async function login(
-  input: LoginInput
+  input: LoginInput,
 ): Promise<AuthResponse> {
-  const user = await findUserByPhone(input.phone);
+  const user =
+    await findUserByPhone(input.phone);
 
   if (!user || !user.passwordHash) {
-    throw new Error("INVALID_CREDENTIALS");
+    throw new Error(
+      "INVALID_CREDENTIALS",
+    );
   }
 
-  const validPassword = verifyPassword(
-    input.password,
-    user.passwordHash
-  );
+  const validPassword =
+    verifyPassword(
+      input.password,
+      user.passwordHash,
+    );
 
   if (!validPassword) {
-    throw new Error("INVALID_CREDENTIALS");
+    throw new Error(
+      "INVALID_CREDENTIALS",
+    );
   }
 
-  const tokens = createTokens(user.id);
+  const tokens =
+    createTokens(user.id);
 
   return {
     user: {
@@ -78,8 +101,33 @@ export async function login(
       phone: user.phone,
       username: user.username,
       displayName: user.displayName,
-      avatarUrl: user.avatarUrl
+      avatarUrl: user.avatarUrl,
     },
-    tokens
+    tokens,
+  };
+}
+
+/**
+ * Creates a new short-lived access token
+ * from a valid refresh token.
+ */
+export async function refreshAccessToken(
+  refreshToken: string,
+): Promise<{
+  accessToken: string;
+}> {
+  const payload =
+    verifyRefreshToken(
+      refreshToken,
+    );
+
+  const tokens =
+    createTokens(
+      payload.userId,
+    );
+
+  return {
+    accessToken:
+      tokens.accessToken,
   };
 }
