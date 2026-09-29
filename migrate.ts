@@ -24,9 +24,44 @@ async function runMigration(): Promise<void> {
   const client = await db.connect();
 
   try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS _wasal_migrations (
+        id VARCHAR(100) PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    const migrationId = "001_initial_schema";
+
+    const existingMigration =
+      await client.query(
+        `
+          SELECT id
+          FROM _wasal_migrations
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [migrationId],
+      );
+
+    if (existingMigration.rows.length > 0) {
+      console.log(
+        "Migration already applied. Nothing to do.",
+      );
+      return;
+    }
+
     await client.query("BEGIN");
 
     await client.query(sql);
+
+    await client.query(
+      `
+        INSERT INTO _wasal_migrations (id)
+        VALUES ($1)
+      `,
+      [migrationId],
+    );
 
     await client.query("COMMIT");
 
