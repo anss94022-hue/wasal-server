@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "migrate": "node dist/migrate.js",
-    "start": "node dist/src/server.js",
+    "start": "npm run migrate && node dist/src/server.js",
     "test": "vitest run"
   },
   "dependencies": {
