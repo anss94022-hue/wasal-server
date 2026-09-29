@@ -1,5 +1,7 @@
+import { randomInt } from "node:crypto";
+
 import { createAuthUser } from "./auth.repository.js";
-import { hashPassword } from "./password.js";
+
 import {
   createTokens,
   verifyRefreshToken,
@@ -8,6 +10,7 @@ import {
 import {
   findUserByPhone,
   findUserByUsername,
+  findUserByWasalCode,
 } from "../users/users.repository.js";
 
 import type {
@@ -18,40 +21,51 @@ import type {
 
 import { verifyPassword } from "./password.js";
 
-export async function register(
-  input: RegisterInput,
-): Promise<AuthResponse> {
-  const existingPhone =
-    await findUserByPhone(input.phone);
+function generateWasalCode(): string {
+  return String(
+    randomInt(10000, 100000)
+  );
+}
 
-  if (existingPhone) {
-    throw new Error(
-      "PHONE_ALREADY_REGISTERED",
-    );
-  }
+async function createUniqueWasalCode(): Promise<string> {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const wasalCode = generateWasalCode();
 
-  if (input.username) {
-    const existingUsername =
-      await findUserByUsername(
-        input.username,
+    const existingUser =
+      await findUserByWasalCode(
+        wasalCode
       );
 
-    if (existingUsername) {
-      throw new Error(
-        "USERNAME_ALREADY_TAKEN",
-      );
+    if (!existingUser) {
+      return wasalCode;
     }
   }
 
-  const passwordHash =
-    hashPassword(input.password);
-
-  const user = await createAuthUser(
-    input.phone,
-    input.username ?? null,
-    input.displayName,
-    passwordHash,
+  throw new Error(
+    "WASAL_CODE_GENERATION_FAILED"
   );
+}
+
+export async function register(
+  input: RegisterInput,
+): Promise<AuthResponse> {
+  const displayName =
+    input.displayName?.trim();
+
+  if (!displayName) {
+    throw new Error(
+      "DISPLAY_NAME_REQUIRED"
+    );
+  }
+
+  const wasalCode =
+    await createUniqueWasalCode();
+
+  const user =
+    await createAuthUser(
+      displayName,
+      wasalCode,
+    );
 
   const tokens =
     createTokens(user.id);
@@ -61,6 +75,7 @@ export async function register(
       id: user.id,
       phone: user.phone,
       username: user.username,
+      wasalCode: user.wasalCode,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
     },
@@ -68,15 +83,30 @@ export async function register(
   };
 }
 
+/**
+ * Login is kept for compatibility
+ * with existing accounts that still use
+ * phone + password.
+ *
+ * New Wasal accounts are registered
+ * using displayName only and use the
+ * issued accessToken/refreshToken.
+ */
 export async function login(
   input: LoginInput,
 ): Promise<AuthResponse> {
+  if (!input.phone || !input.password) {
+    throw new Error(
+      "INVALID_CREDENTIALS"
+    );
+  }
+
   const user =
     await findUserByPhone(input.phone);
 
   if (!user || !user.passwordHash) {
     throw new Error(
-      "INVALID_CREDENTIALS",
+      "INVALID_CREDENTIALS"
     );
   }
 
@@ -88,7 +118,7 @@ export async function login(
 
   if (!validPassword) {
     throw new Error(
-      "INVALID_CREDENTIALS",
+      "INVALID_CREDENTIALS"
     );
   }
 
@@ -100,6 +130,7 @@ export async function login(
       id: user.id,
       phone: user.phone,
       username: user.username,
+      wasalCode: user.wasalCode,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
     },
