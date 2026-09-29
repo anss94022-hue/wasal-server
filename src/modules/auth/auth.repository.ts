@@ -2,24 +2,21 @@ import { db } from "../../database/db.js";
 import type { User } from "../users/users.repository.js";
 
 export async function createAuthUser(
-  phone: string,
-  username: string | null,
   displayName: string,
-  passwordHash: string
+  wasalCode: string
 ): Promise<User> {
   const result = await db.query<User>(
     `
       INSERT INTO users (
-        phone,
-        username,
         display_name,
-        password_hash
+        wasal_code
       )
-      VALUES ($1, $2, $3, $4)
+      VALUES ($1, $2)
       RETURNING
         id,
         phone,
         username,
+        wasal_code AS "wasalCode",
         display_name AS "displayName",
         avatar_url AS "avatarUrl",
         password_hash AS "passwordHash",
@@ -28,7 +25,10 @@ export async function createAuthUser(
         created_at AS "createdAt",
         updated_at AS "updatedAt"
     `,
-    [phone, username, displayName, passwordHash]
+    [
+      displayName,
+      wasalCode,
+    ]
   );
 
   return result.rows[0];
