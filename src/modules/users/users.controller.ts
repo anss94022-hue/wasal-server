@@ -1,8 +1,13 @@
-import { Request, Response } from "express";
+import {
+  Request,
+  Response,
+} from "express";
+
 import {
   getUserById,
   getUserByPhone,
-  getUserByUsername
+  getUserByUsername,
+  getUserByWasalCode,
 } from "./users.service.js";
 
 export async function getUserByIdController(
@@ -13,7 +18,7 @@ export async function getUserByIdController(
 
   if (!id) {
     res.status(400).json({
-      error: "USER_ID_REQUIRED"
+      error: "USER_ID_REQUIRED",
     });
     return;
   }
@@ -22,13 +27,13 @@ export async function getUserByIdController(
 
   if (!user) {
     res.status(404).json({
-      error: "USER_NOT_FOUND"
+      error: "USER_NOT_FOUND",
     });
     return;
   }
 
   res.status(200).json({
-    user
+    user,
   });
 }
 
@@ -40,7 +45,7 @@ export async function getUserByPhoneController(
 
   if (!phone) {
     res.status(400).json({
-      error: "PHONE_REQUIRED"
+      error: "PHONE_REQUIRED",
     });
     return;
   }
@@ -49,13 +54,13 @@ export async function getUserByPhoneController(
 
   if (!user) {
     res.status(404).json({
-      error: "USER_NOT_FOUND"
+      error: "USER_NOT_FOUND",
     });
     return;
   }
 
   res.status(200).json({
-    user
+    user,
   });
 }
 
@@ -63,25 +68,66 @@ export async function getUserByUsernameController(
   req: Request,
   res: Response
 ): Promise<void> {
-  const username = String(req.query.username ?? "");
+  const username = String(
+    req.query.username ?? ""
+  );
 
   if (!username) {
     res.status(400).json({
-      error: "USERNAME_REQUIRED"
+      error: "USERNAME_REQUIRED",
     });
     return;
   }
 
-  const user = await getUserByUsername(username);
+  const user = await getUserByUsername(
+    username
+  );
 
   if (!user) {
     res.status(404).json({
-      error: "USER_NOT_FOUND"
+      error: "USER_NOT_FOUND",
     });
     return;
   }
 
   res.status(200).json({
-    user
+    user,
+  });
+}
+
+export async function getUserByWasalCodeController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const wasalCode = String(
+    req.query.wasalCode ?? ""
+  ).trim();
+
+  if (!wasalCode) {
+    res.status(400).json({
+      error: "WASAL_CODE_REQUIRED",
+    });
+    return;
+  }
+
+  if (!/^\d{5}$/.test(wasalCode)) {
+    res.status(400).json({
+      error: "INVALID_WASAL_CODE",
+    });
+    return;
+  }
+
+  const user =
+    await getUserByWasalCode(wasalCode);
+
+  if (!user) {
+    res.status(404).json({
+      error: "USER_NOT_FOUND",
+    });
+    return;
+  }
+
+  res.status(200).json({
+    user,
   });
 }
