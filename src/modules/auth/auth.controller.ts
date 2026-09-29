@@ -15,30 +15,22 @@ export async function registerController(
 ): Promise<void> {
   try {
     const {
-      phone,
-      username,
       displayName,
-      password,
     } = req.body;
 
     if (
-      !phone ||
-      !displayName ||
-      !password
+      typeof displayName !== "string" ||
+      !displayName.trim()
     ) {
       res.status(400).json({
         success: false,
-        error:
-          "PHONE_DISPLAY_NAME_PASSWORD_REQUIRED",
+        error: "DISPLAY_NAME_REQUIRED",
       });
       return;
     }
 
     const result = await register({
-      phone,
-      username,
-      displayName,
-      password,
+      displayName: displayName.trim(),
     });
 
     res.status(201).json({
@@ -53,11 +45,20 @@ export async function registerController(
 
     if (
       message ===
-        "PHONE_ALREADY_REGISTERED" ||
-      message ===
-        "USERNAME_ALREADY_TAKEN"
+      "DISPLAY_NAME_REQUIRED"
     ) {
-      res.status(409).json({
+      res.status(400).json({
+        success: false,
+        error: message,
+      });
+      return;
+    }
+
+    if (
+      message ===
+      "WASAL_CODE_GENERATION_FAILED"
+    ) {
+      res.status(503).json({
         success: false,
         error: message,
       });
@@ -66,8 +67,7 @@ export async function registerController(
 
     res.status(500).json({
       success: false,
-      error:
-        "INTERNAL_SERVER_ERROR",
+      error: "INTERNAL_SERVER_ERROR",
     });
   }
 }
@@ -82,11 +82,15 @@ export async function loginController(
       password,
     } = req.body;
 
-    if (!phone || !password) {
+    if (
+      typeof phone !== "string" ||
+      typeof password !== "string" ||
+      !phone ||
+      !password
+    ) {
       res.status(400).json({
         success: false,
-        error:
-          "PHONE_PASSWORD_REQUIRED",
+        error: "PHONE_PASSWORD_REQUIRED",
       });
       return;
     }
@@ -112,16 +116,14 @@ export async function loginController(
     ) {
       res.status(401).json({
         success: false,
-        error:
-          "INVALID_CREDENTIALS",
+        error: "INVALID_CREDENTIALS",
       });
       return;
     }
 
     res.status(500).json({
       success: false,
-      error:
-        "INTERNAL_SERVER_ERROR",
+      error: "INTERNAL_SERVER_ERROR",
     });
   }
 }
@@ -136,14 +138,12 @@ export async function refreshController(
     } = req.body;
 
     if (
-      !refreshToken ||
-      typeof refreshToken !==
-        "string"
+      typeof refreshToken !== "string" ||
+      !refreshToken
     ) {
       res.status(400).json({
         success: false,
-        error:
-          "REFRESH_TOKEN_REQUIRED",
+        error: "REFRESH_TOKEN_REQUIRED",
       });
       return;
     }
@@ -157,32 +157,7 @@ export async function refreshController(
       success: true,
       ...result,
     });
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "";
-
-    if (
-      message ===
-        "INVALID_REFRESH_TOKEN" ||
-      message ===
-        "INVALID_TOKEN" ||
-      message ===
-        "jwt expired" ||
-      message ===
-        "jwt malformed" ||
-      message ===
-        "invalid signature"
-    ) {
-      res.status(401).json({
-        success: false,
-        error:
-          "INVALID_OR_EXPIRED_REFRESH_TOKEN",
-      });
-      return;
-    }
-
+  } catch {
     res.status(401).json({
       success: false,
       error:
