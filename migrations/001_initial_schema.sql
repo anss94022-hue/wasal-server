@@ -40,15 +40,29 @@ CREATE TYPE call_status AS ENUM (
 
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  phone VARCHAR(30) UNIQUE NOT NULL,
+
+  phone VARCHAR(30) UNIQUE,
+
   username VARCHAR(50) UNIQUE,
+
+  wasal_code VARCHAR(5) UNIQUE NOT NULL,
+
   display_name VARCHAR(100) NOT NULL,
+
   avatar_url TEXT,
+
   password_hash TEXT,
+
   is_online BOOLEAN NOT NULL DEFAULT FALSE,
+
   last_seen_at TIMESTAMPTZ,
+
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT users_wasal_code_format
+    CHECK (wasal_code ~ '^[0-9]{5}$')
 );
 
 CREATE TABLE conversations (
@@ -243,3 +257,6 @@ CREATE INDEX idx_events_starts_at
 
 CREATE INDEX idx_users_username
   ON users(username);
+
+CREATE INDEX idx_users_wasal_code
+  ON users(wasal_code);
