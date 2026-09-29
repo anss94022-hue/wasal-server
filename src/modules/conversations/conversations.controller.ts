@@ -1,91 +1,135 @@
-import { Request, Response } from "express";
+import {
+  Request,
+  Response,
+} from "express";
+
 import {
   createPrivateChat,
-  getConversationById
+  getConversationById,
 } from "./conversations.service.js";
 
-interface AuthRequest extends Request {
+interface AuthRequest
+  extends Request {
   userId?: string;
 }
 
 export async function createPrivateConversationController(
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> {
   try {
     if (!req.userId) {
       res.status(401).json({
-        error: "AUTH_REQUIRED"
+        error: "AUTH_REQUIRED",
       });
       return;
     }
 
-    const { otherUserId } = req.body;
+    const { wasalCode } =
+      req.body;
 
-    if (!otherUserId) {
+    if (
+      typeof wasalCode !==
+        "string" ||
+      !wasalCode.trim()
+    ) {
       res.status(400).json({
-        error: "OTHER_USER_ID_REQUIRED"
+        error:
+          "WASAL_CODE_REQUIRED",
       });
       return;
     }
 
-    const conversation = await createPrivateChat(
-      req.userId,
-      String(otherUserId)
-    );
+    const conversation =
+      await createPrivateChat(
+        req.userId,
+        wasalCode,
+      );
 
     res.status(201).json({
-      conversation
+      conversation,
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "";
+      error instanceof Error
+        ? error.message
+        : "";
 
-    if (message === "CANNOT_CHAT_WITH_SELF") {
+    if (
+      message ===
+      "INVALID_WASAL_CODE"
+    ) {
       res.status(400).json({
-        error: message
+        error: message,
+      });
+      return;
+    }
+
+    if (
+      message ===
+      "USER_NOT_FOUND"
+    ) {
+      res.status(404).json({
+        error: message,
+      });
+      return;
+    }
+
+    if (
+      message ===
+      "CANNOT_CHAT_WITH_SELF"
+    ) {
+      res.status(400).json({
+        error: message,
       });
       return;
     }
 
     res.status(500).json({
-      error: "INTERNAL_SERVER_ERROR"
+      error:
+        "INTERNAL_SERVER_ERROR",
     });
   }
 }
 
 export async function getConversationController(
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> {
   try {
-    const conversationId = String(
-      req.params.id ?? ""
-    );
+    const conversationId =
+      String(
+        req.params.id ?? "",
+      );
 
     if (!conversationId) {
       res.status(400).json({
-        error: "CONVERSATION_ID_REQUIRED"
+        error:
+          "CONVERSATION_ID_REQUIRED",
       });
       return;
     }
 
     const conversation =
-      await getConversationById(conversationId);
+      await getConversationById(
+        conversationId,
+      );
 
     if (!conversation) {
       res.status(404).json({
-        error: "CONVERSATION_NOT_FOUND"
+        error:
+          "CONVERSATION_NOT_FOUND",
       });
       return;
     }
 
     res.status(200).json({
-      conversation
+      conversation,
     });
   } catch {
     res.status(500).json({
-      error: "INTERNAL_SERVER_ERROR"
+      error:
+        "INTERNAL_SERVER_ERROR",
     });
   }
 }
