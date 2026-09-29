@@ -1,8 +1,5 @@
 export interface RegisterInput {
-  phone: string;
-  username?: string;
   displayName: string;
-  password: string;
 }
 
 export interface LoginInput {
@@ -12,8 +9,9 @@ export interface LoginInput {
 
 export interface AuthUser {
   id: string;
-  phone: string;
+  phone: string | null;
   username: string | null;
+  wasalCode: string;
   displayName: string;
   avatarUrl: string | null;
 }
