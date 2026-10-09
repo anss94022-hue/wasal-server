@@ -1,3 +1,4 @@
+
 import { randomInt } from "node:crypto";
 
 import { createAuthUser } from "./auth.repository.js";
@@ -22,9 +23,16 @@ import type {
 import { verifyPassword } from "./password.js";
 
 function generateWasalCode(): string {
-  return String(
-    randomInt(10000, 100000)
-  );
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+  let code = "";
+
+  for (let i = 0; i < 15; i++) {
+    code += chars[randomInt(chars.length)];
+  }
+
+  return code;
 }
 
 async function createUniqueWasalCode(): Promise<string> {
@@ -32,9 +40,7 @@ async function createUniqueWasalCode(): Promise<string> {
     const wasalCode = generateWasalCode();
 
     const existingUser =
-      await findUserByWasalCode(
-        wasalCode
-      );
+      await findUserByWasalCode(wasalCode);
 
     if (!existingUser) {
       return wasalCode;
