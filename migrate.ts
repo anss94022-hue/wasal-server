@@ -1,21 +1,22 @@
+
 import fs from "node:fs";
 import path from "node:path";
 
 import { db } from "./src/database/db.js";
 
-const migrationPath = path.join(
-  process.cwd(),
-  "migrations",
-  "001_initial_schema.sql",
-);
+const migrations = [
+  {
+    id: "001_initial_schema",
+    file: "001_initial_schema.sql",
+  },
+  {
+    id: "002_expand_wasal_code",
+    file: "002_expand_wasal_code.sql",
+  },
+];
 
 async function runMigration(): Promise<void> {
-  console.log("Starting database migration...");
-
-  const sql = fs.readFileSync(
-    migrationPath,
-    "utf8",
-  );
+  console.log("Starting database migrations...");
 
   const client = await db.connect();
 
@@ -27,58 +28,67 @@ async function runMigration(): Promise<void> {
       );
     `);
 
-    const migrationId = "001_initial_schema";
-
-    const existingMigration =
-      await client.query(
+    for (const migration of migrations) {
+      const existing = await client.query(
         `
           SELECT id
           FROM _wasal_migrations
           WHERE id = $1
           LIMIT 1
         `,
-        [migrationId],
+        [migration.id],
       );
 
-    if (existingMigration.rows.length > 0) {
-      console.log(
-        "Migration already applied. Nothing to do.",
+      if (existing.rows.length > 0) {
+        console.log(
+          `Migration already applied: ${migration.id}`,
+        );
+        continue;
+      }
+
+      const migrationPath = path.join(
+        process.cwd(),
+        "migrations",
+        migration.file,
       );
-      return;
+
+      const sql = fs.readFileSync(
+        migrationPath,
+        "utf8",
+      );
+
+      await client.query("BEGIN");
+
+      try {
+        await client.query(sql);
+
+        await client.query(
+          `
+            INSERT INTO _wasal_migrations (id)
+            VALUES ($1)
+          `,
+          [migration.id],
+        );
+
+        await client.query("COMMIT");
+
+        console.log(
+          `Migration applied: ${migration.id}`,
+        );
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
     }
 
-    await client.query("BEGIN");
-
-    await client.query(sql);
-
-    await client.query(
-      `
-        INSERT INTO _wasal_migrations (id)
-        VALUES ($1)
-      `,
-      [migrationId],
-    );
-
-    await client.query("COMMIT");
-
-    console.log(
-      "Database migration completed successfully.",
-    );
-  } catch (error) {
-    await client.query("ROLLBACK");
-
-    console.error(
-      "Database migration failed:",
-      error,
-    );
-
-    throw error;
+    console.log("Database migrations completed.");
   } finally {
     client.release();
     await db.end();
   }
 }
 
-runMigration().catch(() => {
-  process.exit(1);
+runMigration().catch((error) => {
+  console.error("Database migration failed:", error);
+  process.exitCode = 1;
 });
