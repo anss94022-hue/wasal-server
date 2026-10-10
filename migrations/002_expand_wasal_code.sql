@@ -7,4 +7,4 @@ ALTER TABLE users
 
 ALTER TABLE users
   ADD CONSTRAINT users_wasal_code_format
-  CHECK (wasal_code ~ '^[A-Za-z0-9]{5,15}$');
+  CHECK (wasal_code ~ '^[A-Za-z0-9]{15}$');
