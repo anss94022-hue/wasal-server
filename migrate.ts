@@ -102,23 +102,40 @@ async function migrate(): Promise<void> {
       continue;
     }
 
-    const legacyIds =
-      "legacyIds" in migration ? migration.legacyIds : [];
-
-    if (legacyIds.length > 0) {
+    if ("legacyIds" in migration) {
       const legacyResult = await db.query(
         "SELECT id FROM _wasal_migrations WHERE id = ANY($1::text[])",
-        [legacyIds],
+        [migration.legacyIds],
       );
 
-      if (legacyResult.rows.length > 0) {
+      const constraintResult = await db.query(`
+        SELECT pg_get_constraintdef(c.oid) AS definition
+        FROM pg_constraint c
+        JOIN pg_class t ON t.oid = c.conrelid
+        JOIN pg_namespace n ON n.oid = t.relnamespace
+        WHERE n.nspname = 'public'
+          AND t.relname = 'users'
+          AND c.conname = 'users_wasal_code_format'
+          AND c.contype = 'c'
+      `);
+
+      const definition =
+        constraintResult.rows[0]?.definition ?? "";
+
+      const hasExact15CharacterConstraint =
+        definition.includes("^[A-Za-z0-9]{15}$");
+
+      if (
+        legacyResult.rows.length > 0 &&
+        hasExact15CharacterConstraint
+      ) {
         await db.query(
           "INSERT INTO _wasal_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING",
           [migration.id],
         );
 
         console.log(
-          `Legacy migration detected; marked ${migration.id} without rerunning SQL.`,
+          "Existing 15-character constraint detected; unified migration marked.",
         );
         continue;
       }
@@ -140,10 +157,12 @@ async function migrate(): Promise<void> {
     try {
       await client.query("BEGIN");
       await client.query(sql);
+
       await client.query(
-        "INSERT INTO _wasal_migrations (id) VALUES ($1)",
+        "INSERT INTO _wasal_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING",
         [migration.id],
       );
+
       await client.query("COMMIT");
 
       console.log(`Migration applied: ${migration.id}`);
