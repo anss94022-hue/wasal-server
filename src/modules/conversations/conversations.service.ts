@@ -1,8 +1,8 @@
-
 import {
   createPrivateConversation,
   findConversationById,
   isConversationMember,
+  listUserConversations,
 } from "./conversations.repository.js";
 
 import {
@@ -15,6 +15,12 @@ export async function getConversationById(
   id: string,
 ) {
   return findConversationById(id);
+}
+
+export async function getUserConversations(
+  userId: string,
+) {
+  return listUserConversations(userId);
 }
 
 export async function createPrivateChat(
