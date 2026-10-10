@@ -18,13 +18,37 @@ const migrations = [
   },
 ];
 
-async function migrate() {
+async function migrate(): Promise<void> {
   await db.query(`
     CREATE TABLE IF NOT EXISTS _wasal_migrations (
       id TEXT PRIMARY KEY,
       applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+
+  const baseline = await db.query(`
+    SELECT to_regclass('public.users') AS users_table
+  `);
+
+  const initial = await db.query(
+    "SELECT id FROM _wasal_migrations WHERE id = $1",
+    ["001_initial_schema"],
+  );
+
+  if (
+    initial.rows.length === 0 &&
+    baseline.rows[0]?.users_table !== null &&
+    baseline.rows[0]?.users_table !== undefined
+  ) {
+    await db.query(
+      "INSERT INTO _wasal_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING",
+      ["001_initial_schema"],
+    );
+
+    console.log(
+      "Existing users table detected; initial schema will not be recreated.",
+    );
+  }
 
   for (const migration of migrations) {
     const result = await db.query(
@@ -67,21 +91,15 @@ async function migrate() {
       client.release();
     }
   }
+
+  console.log("Database migrations completed successfully.");
 }
 
 migrate()
-  .then(async () => {
-    console.log("Database migrations completed.");
-    await db.end();
-  })
-  .catch(async (error) => {
+  .catch((error) => {
     console.error("Database migration failed:", error);
-
-    try {
-      await db.end();
-    } catch {
-      // Ignore connection cleanup errors.
-    }
-
     process.exitCode = 1;
+  })
+  .finally(async () => {
+    await db.end();
   });
