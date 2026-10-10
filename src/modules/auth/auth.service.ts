@@ -10,7 +10,6 @@ import {
 
 import {
   findUserByPhone,
-  findUserByUsername,
   findUserByWasalCode,
 } from "../users/users.repository.js";
 
@@ -47,34 +46,26 @@ async function createUniqueWasalCode(): Promise<string> {
     }
   }
 
-  throw new Error(
-    "WASAL_CODE_GENERATION_FAILED"
-  );
+  throw new Error("WASAL_CODE_GENERATION_FAILED");
 }
 
 export async function register(
   input: RegisterInput,
 ): Promise<AuthResponse> {
-  const displayName =
-    input.displayName?.trim();
+  const displayName = input.displayName?.trim();
 
   if (!displayName) {
-    throw new Error(
-      "DISPLAY_NAME_REQUIRED"
-    );
+    throw new Error("DISPLAY_NAME_REQUIRED");
   }
 
-  const wasalCode =
-    await createUniqueWasalCode();
+  const wasalCode = await createUniqueWasalCode();
 
-  const user =
-    await createAuthUser(
-      displayName,
-      wasalCode,
-    );
+  const user = await createAuthUser(
+    displayName,
+    wasalCode,
+  );
 
-  const tokens =
-    createTokens(user.id);
+  const tokens = createTokens(user.id);
 
   return {
     user: {
@@ -90,46 +81,31 @@ export async function register(
 }
 
 /**
- * Login is kept for compatibility
- * with existing accounts that still use
- * phone + password.
- *
- * New Wasal accounts are registered
- * using displayName only and use the
- * issued accessToken/refreshToken.
+ * Login is kept for compatibility with existing accounts.
  */
 export async function login(
   input: LoginInput,
 ): Promise<AuthResponse> {
   if (!input.phone || !input.password) {
-    throw new Error(
-      "INVALID_CREDENTIALS"
-    );
+    throw new Error("INVALID_CREDENTIALS");
   }
 
-  const user =
-    await findUserByPhone(input.phone);
+  const user = await findUserByPhone(input.phone);
 
   if (!user || !user.passwordHash) {
-    throw new Error(
-      "INVALID_CREDENTIALS"
-    );
+    throw new Error("INVALID_CREDENTIALS");
   }
 
-  const validPassword =
-    verifyPassword(
-      input.password,
-      user.passwordHash,
-    );
+  const validPassword = verifyPassword(
+    input.password,
+    user.passwordHash,
+  );
 
   if (!validPassword) {
-    throw new Error(
-      "INVALID_CREDENTIALS"
-    );
+    throw new Error("INVALID_CREDENTIALS");
   }
 
-  const tokens =
-    createTokens(user.id);
+  const tokens = createTokens(user.id);
 
   return {
     user: {
@@ -145,26 +121,21 @@ export async function login(
 }
 
 /**
- * Creates a new short-lived access token
- * from a valid refresh token.
+ * Issues a fresh access token and refresh token.
+ * The client must save both returned tokens.
  */
 export async function refreshAccessToken(
   refreshToken: string,
 ): Promise<{
   accessToken: string;
+  refreshToken: string;
 }> {
-  const payload =
-    verifyRefreshToken(
-      refreshToken,
-    );
+  const payload = verifyRefreshToken(refreshToken);
 
-  const tokens =
-    createTokens(
-      payload.userId,
-    );
+  const tokens = createTokens(payload.userId);
 
   return {
-    accessToken:
-      tokens.accessToken,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
   };
 }
