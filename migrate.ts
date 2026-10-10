@@ -1,3 +1,4 @@
+
 import fs from "node:fs";
 import path from "node:path";
 import { db } from "./src/database/db.js";
@@ -8,12 +9,12 @@ const migrations = [
     file: "001_initial_schema.sql",
   },
   {
-    id: "002_expand_wasal_code",
-    file: "002_expand_wasal_code.sql",
-  },
-  {
-    id: "003_enforce_15_char_wasal_code",
-    file: "003_enforce_15_char_wasal_code.sql",
+    id: "002_enforce_15_char_wasal_code",
+    file: "002_enforce_15_char_wasal_code.sql",
+    legacyIds: [
+      "002_expand_wasal_code",
+      "003_enforce_15_char_wasal_code",
+    ],
   },
 ];
 
@@ -99,6 +100,28 @@ async function migrate(): Promise<void> {
     if (result.rows.length > 0) {
       console.log(`Migration already applied: ${migration.id}`);
       continue;
+    }
+
+    const legacyIds =
+      "legacyIds" in migration ? migration.legacyIds : [];
+
+    if (legacyIds.length > 0) {
+      const legacyResult = await db.query(
+        "SELECT id FROM _wasal_migrations WHERE id = ANY($1::text[])",
+        [legacyIds],
+      );
+
+      if (legacyResult.rows.length > 0) {
+        await db.query(
+          "INSERT INTO _wasal_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING",
+          [migration.id],
+        );
+
+        console.log(
+          `Legacy migration detected; marked ${migration.id} without rerunning SQL.`,
+        );
+        continue;
+      }
     }
 
     const migrationPath = path.join(
