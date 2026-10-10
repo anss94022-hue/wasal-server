@@ -10,6 +10,13 @@ export interface Conversation {
   updatedAt: Date;
 }
 
+export interface UserConversation extends Conversation {
+  title: string;
+  lastMessage: string | null;
+  lastMessageType: string | null;
+  lastMessageAt: Date | null;
+}
+
 interface ConversationRow {
   id: string;
   type: "private" | "group";
@@ -20,6 +27,13 @@ interface ConversationRow {
   updated_at: Date;
 }
 
+interface UserConversationRow extends ConversationRow {
+  title: string | null;
+  last_message: string | null;
+  last_message_type: string | null;
+  last_message_at: Date | null;
+}
+
 function mapConversation(row: ConversationRow): Conversation {
   return {
     id: row.id,
@@ -28,8 +42,68 @@ function mapConversation(row: ConversationRow): Conversation {
     avatarUrl: row.avatar_url,
     createdBy: row.created_by,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
   };
+}
+
+export async function listUserConversations(
+  userId: string
+): Promise<UserConversation[]> {
+  const result = await db.query<UserConversationRow>(
+    `
+      SELECT
+        c.id,
+        c.type,
+        c.name,
+        c.avatar_url,
+        c.created_by,
+        c.created_at,
+        c.updated_at,
+        CASE
+          WHEN c.type = 'group'
+            THEN COALESCE(c.name, 'مجموعة')
+          ELSE COALESCE(other_user.display_name, 'مستخدم وصال')
+        END AS title,
+        last_message.content AS last_message,
+        last_message.type AS last_message_type,
+        last_message.created_at AS last_message_at
+      FROM conversations c
+      INNER JOIN conversation_members mine
+        ON mine.conversation_id = c.id
+       AND mine.user_id = $1
+      LEFT JOIN LATERAL (
+        SELECT u.display_name
+        FROM conversation_members other_member
+        INNER JOIN users u
+          ON u.id = other_member.user_id
+        WHERE other_member.conversation_id = c.id
+          AND other_member.user_id <> $1
+          AND c.type = 'private'
+        LIMIT 1
+      ) other_user ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT
+          m.content,
+          m.type,
+          m.created_at
+        FROM messages m
+        WHERE m.conversation_id = c.id
+        ORDER BY m.created_at DESC
+        LIMIT 1
+      ) last_message ON TRUE
+      ORDER BY
+        COALESCE(last_message.created_at, c.updated_at) DESC
+    `,
+    [userId]
+  );
+
+  return result.rows.map((row) => ({
+    ...mapConversation(row),
+    title: row.title || row.name || "مستخدم وصال",
+    lastMessage: row.last_message,
+    lastMessageType: row.last_message_type,
+    lastMessageAt: row.last_message_at,
+  }));
 }
 
 export async function findConversationById(
