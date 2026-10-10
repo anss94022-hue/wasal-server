@@ -1,4 +1,3 @@
-
 import fs from "node:fs";
 import path from "node:path";
 import { db } from "./src/database/db.js";
@@ -18,6 +17,28 @@ const migrations = [
   },
 ];
 
+const expectedTables = [
+  "users",
+  "conversations",
+  "conversation_members",
+  "messages",
+  "message_attachments",
+  "message_reactions",
+  "message_reads",
+  "sticker_packs",
+  "stickers",
+  "sticker_favorites",
+  "calls",
+  "call_participants",
+  "polls",
+  "poll_options",
+  "poll_votes",
+  "events",
+  "user_blocks",
+  "favorites",
+  "pinned_messages",
+];
+
 async function migrate(): Promise<void> {
   await db.query(`
     CREATE TABLE IF NOT EXISTS _wasal_migrations (
@@ -35,19 +56,38 @@ async function migrate(): Promise<void> {
     ["001_initial_schema"],
   );
 
-  if (
-    initial.rows.length === 0 &&
+  const usersTableExists =
     baseline.rows[0]?.users_table !== null &&
-    baseline.rows[0]?.users_table !== undefined
-  ) {
+    baseline.rows[0]?.users_table !== undefined;
+
+  if (initial.rows.length === 0 && usersTableExists) {
+    const tables = await db.query(
+      `
+        SELECT table_name
+        FROM unnest($1::text[]) AS expected(table_name)
+        WHERE to_regclass('public.' || expected.table_name) IS NULL
+      `,
+      [expectedTables],
+    );
+
+    const missingTables = tables.rows.map(
+      (row: { table_name: string }) => row.table_name,
+    );
+
+    if (missingTables.length > 0) {
+      throw new Error(
+        "Existing users table is missing required tables: " +
+          missingTables.join(", ") +
+          ". Initial schema was not run.",
+      );
+    }
+
     await db.query(
       "INSERT INTO _wasal_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING",
       ["001_initial_schema"],
     );
 
-    console.log(
-      "Existing users table detected; initial schema will not be recreated.",
-    );
+    console.log("Existing schema detected; initial migration marked.");
   }
 
   for (const migration of migrations) {
