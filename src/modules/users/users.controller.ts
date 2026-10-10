@@ -10,11 +10,26 @@ import {
   getUserByWasalCode,
 } from "./users.service.js";
 
+const WASAL_CODE_REGEX = /^[A-Za-z0-9]{15}$/;
+
+function toPublicUser(user: NonNullable<Awaited<ReturnType<typeof getUserById>>>) {
+  return {
+    id: user.id,
+    wasalCode: user.wasalCode,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
+    isOnline: user.isOnline,
+    lastSeenAt: user.lastSeenAt,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
+}
+
 export async function getUserByIdController(
   req: Request,
   res: Response
 ): Promise<void> {
-  const id = String(req.params.id ?? "");
+  const id = String(req.params.id ?? "").trim();
 
   if (!id) {
     res.status(400).json({
@@ -33,7 +48,7 @@ export async function getUserByIdController(
   }
 
   res.status(200).json({
-    user,
+    user: toPublicUser(user),
   });
 }
 
@@ -41,7 +56,7 @@ export async function getUserByPhoneController(
   req: Request,
   res: Response
 ): Promise<void> {
-  const phone = String(req.query.phone ?? "");
+  const phone = String(req.query.phone ?? "").trim();
 
   if (!phone) {
     res.status(400).json({
@@ -60,7 +75,7 @@ export async function getUserByPhoneController(
   }
 
   res.status(200).json({
-    user,
+    user: toPublicUser(user),
   });
 }
 
@@ -70,7 +85,7 @@ export async function getUserByUsernameController(
 ): Promise<void> {
   const username = String(
     req.query.username ?? ""
-  );
+  ).trim();
 
   if (!username) {
     res.status(400).json({
@@ -79,9 +94,7 @@ export async function getUserByUsernameController(
     return;
   }
 
-  const user = await getUserByUsername(
-    username
-  );
+  const user = await getUserByUsername(username);
 
   if (!user) {
     res.status(404).json({
@@ -91,7 +104,7 @@ export async function getUserByUsernameController(
   }
 
   res.status(200).json({
-    user,
+    user: toPublicUser(user),
   });
 }
 
@@ -110,15 +123,14 @@ export async function getUserByWasalCodeController(
     return;
   }
 
-  if (!/^\d{5}$/.test(wasalCode)) {
+  if (!WASAL_CODE_REGEX.test(wasalCode)) {
     res.status(400).json({
       error: "INVALID_WASAL_CODE",
     });
     return;
   }
 
-  const user =
-    await getUserByWasalCode(wasalCode);
+  const user = await getUserByWasalCode(wasalCode);
 
   if (!user) {
     res.status(404).json({
@@ -128,6 +140,6 @@ export async function getUserByWasalCodeController(
   }
 
   res.status(200).json({
-    user,
+    user: toPublicUser(user),
   });
 }
