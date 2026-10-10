@@ -1,10 +1,9 @@
-BEGIN;
 
--- Ensure the column supports exactly 15 characters.
+-- Expand the Wasal code column to 15 characters.
 ALTER TABLE users
   ALTER COLUMN wasal_code TYPE VARCHAR(15);
 
--- Update old test codes before enforcing the new rule.
+-- Replace old experimental codes that do not match the new format.
 UPDATE users
 SET wasal_code = LEFT(
   REPLACE(gen_random_uuid()::TEXT, '-', ''),
@@ -19,5 +18,3 @@ ALTER TABLE users
 ALTER TABLE users
   ADD CONSTRAINT users_wasal_code_format
   CHECK (wasal_code ~ '^[A-Za-z0-9]{15}$');
-
-COMMIT;
