@@ -1,10 +1,15 @@
+
 import {
   createPrivateConversation,
   findConversationById,
   isConversationMember,
 } from "./conversations.repository.js";
 
-import { findUserByWasalCode } from "../users/users.repository.js";
+import {
+  findUserByWasalCode,
+} from "../users/users.repository.js";
+
+const WASAL_CODE_REGEX = /^[A-Za-z0-9]{15}$/;
 
 export async function getConversationById(
   id: string,
@@ -16,30 +21,24 @@ export async function createPrivateChat(
   userId: string,
   wasalCode: string,
 ) {
-  const normalizedCode =
-    wasalCode.trim();
+  const normalizedCode = wasalCode.trim();
 
-  if (!/^\d{5}$/.test(normalizedCode)) {
-    throw new Error(
-      "INVALID_WASAL_CODE",
-    );
+  // Wasal code must contain exactly 15
+  // English letters or digits.
+  if (!WASAL_CODE_REGEX.test(normalizedCode)) {
+    throw new Error("INVALID_WASAL_CODE");
   }
 
-  const otherUser =
-    await findUserByWasalCode(
-      normalizedCode,
-    );
+  const otherUser = await findUserByWasalCode(
+    normalizedCode,
+  );
 
   if (!otherUser) {
-    throw new Error(
-      "USER_NOT_FOUND",
-    );
+    throw new Error("USER_NOT_FOUND");
   }
 
   if (userId === otherUser.id) {
-    throw new Error(
-      "CANNOT_CHAT_WITH_SELF",
-    );
+    throw new Error("CANNOT_CHAT_WITH_SELF");
   }
 
   return createPrivateConversation(
