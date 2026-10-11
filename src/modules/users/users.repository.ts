@@ -1,3 +1,4 @@
+
 import { db } from "../../database/db.js";
 
 export interface User {
@@ -50,17 +51,9 @@ export async function findUserById(
   const result = await db.query<UserRow>(
     `
       SELECT
-        id,
-        phone,
-        username,
-        wasal_code,
-        display_name,
-        avatar_url,
-        password_hash,
-        is_online,
-        last_seen_at,
-        created_at,
-        updated_at
+        id, phone, username, wasal_code,
+        display_name, avatar_url, password_hash,
+        is_online, last_seen_at, created_at, updated_at
       FROM users
       WHERE id = $1
       LIMIT 1
@@ -68,11 +61,28 @@ export async function findUserById(
     [id]
   );
 
-  if (result.rows.length === 0) {
-    return null;
-  }
+  return result.rows.length ? mapUser(result.rows[0]) : null;
+}
 
-  return mapUser(result.rows[0]);
+export async function updateUserDisplayName(
+  id: string,
+  displayName: string
+): Promise<User | null> {
+  const result = await db.query<UserRow>(
+    `
+      UPDATE users
+      SET display_name = $2,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING
+        id, phone, username, wasal_code,
+        display_name, avatar_url, password_hash,
+        is_online, last_seen_at, created_at, updated_at
+    `,
+    [id, displayName]
+  );
+
+  return result.rows.length ? mapUser(result.rows[0]) : null;
 }
 
 export async function findUserByPhone(
@@ -81,17 +91,9 @@ export async function findUserByPhone(
   const result = await db.query<UserRow>(
     `
       SELECT
-        id,
-        phone,
-        username,
-        wasal_code,
-        display_name,
-        avatar_url,
-        password_hash,
-        is_online,
-        last_seen_at,
-        created_at,
-        updated_at
+        id, phone, username, wasal_code,
+        display_name, avatar_url, password_hash,
+        is_online, last_seen_at, created_at, updated_at
       FROM users
       WHERE phone = $1
       LIMIT 1
@@ -99,11 +101,7 @@ export async function findUserByPhone(
     [phone]
   );
 
-  if (result.rows.length === 0) {
-    return null;
-  }
-
-  return mapUser(result.rows[0]);
+  return result.rows.length ? mapUser(result.rows[0]) : null;
 }
 
 export async function findUserByUsername(
@@ -112,17 +110,9 @@ export async function findUserByUsername(
   const result = await db.query<UserRow>(
     `
       SELECT
-        id,
-        phone,
-        username,
-        wasal_code,
-        display_name,
-        avatar_url,
-        password_hash,
-        is_online,
-        last_seen_at,
-        created_at,
-        updated_at
+        id, phone, username, wasal_code,
+        display_name, avatar_url, password_hash,
+        is_online, last_seen_at, created_at, updated_at
       FROM users
       WHERE username = $1
       LIMIT 1
@@ -130,11 +120,7 @@ export async function findUserByUsername(
     [username]
   );
 
-  if (result.rows.length === 0) {
-    return null;
-  }
-
-  return mapUser(result.rows[0]);
+  return result.rows.length ? mapUser(result.rows[0]) : null;
 }
 
 export async function findUserByWasalCode(
@@ -143,17 +129,9 @@ export async function findUserByWasalCode(
   const result = await db.query<UserRow>(
     `
       SELECT
-        id,
-        phone,
-        username,
-        wasal_code,
-        display_name,
-        avatar_url,
-        password_hash,
-        is_online,
-        last_seen_at,
-        created_at,
-        updated_at
+        id, phone, username, wasal_code,
+        display_name, avatar_url, password_hash,
+        is_online, last_seen_at, created_at, updated_at
       FROM users
       WHERE wasal_code = $1
       LIMIT 1
@@ -161,9 +139,5 @@ export async function findUserByWasalCode(
     [wasalCode]
   );
 
-  if (result.rows.length === 0) {
-    return null;
-  }
-
-  return mapUser(result.rows[0]);
+  return result.rows.length ? mapUser(result.rows[0]) : null;
 }
