@@ -14,23 +14,21 @@ export async function registerController(
   res: Response,
 ): Promise<void> {
   try {
-    const {
-      displayName,
-    } = req.body;
+    const body = req.body ?? {};
 
-    if (
-      typeof displayName !== "string" ||
-      !displayName.trim()
-    ) {
-      res.status(400).json({
-        success: false,
-        error: "DISPLAY_NAME_REQUIRED",
-      });
-      return;
-    }
+    const rawDisplayName =
+      body.displayName ??
+      body.display_name ??
+      body.name;
+
+    const displayName =
+      typeof rawDisplayName === "string" &&
+      rawDisplayName.trim()
+        ? rawDisplayName.trim().slice(0, 80)
+        : "مستخدم وصال";
 
     const result = await register({
-      displayName: displayName.trim(),
+      displayName,
     });
 
     res.status(201).json({
@@ -45,17 +43,6 @@ export async function registerController(
 
     if (
       message ===
-      "DISPLAY_NAME_REQUIRED"
-    ) {
-      res.status(400).json({
-        success: false,
-        error: message,
-      });
-      return;
-    }
-
-    if (
-      message ===
       "WASAL_CODE_GENERATION_FAILED"
     ) {
       res.status(503).json({
@@ -65,9 +52,20 @@ export async function registerController(
       return;
     }
 
+    if (
+      message.includes("duplicate key") ||
+      message.includes("unique constraint")
+    ) {
+      res.status(409).json({
+        success: false,
+        error: "ACCOUNT_CONFLICT",
+      });
+      return;
+    }
+
     res.status(500).json({
       success: false,
-      error: "INTERNAL_SERVER_ERROR",
+      error: "ACCOUNT_CREATION_FAILED",
     });
   }
 }
@@ -80,7 +78,7 @@ export async function loginController(
     const {
       phone,
       password,
-    } = req.body;
+    } = req.body ?? {};
 
     if (
       typeof phone !== "string" ||
@@ -111,8 +109,7 @@ export async function loginController(
         : "";
 
     if (
-      message ===
-      "INVALID_CREDENTIALS"
+      message === "INVALID_CREDENTIALS"
     ) {
       res.status(401).json({
         success: false,
@@ -135,7 +132,7 @@ export async function refreshController(
   try {
     const {
       refreshToken,
-    } = req.body;
+    } = req.body ?? {};
 
     if (
       typeof refreshToken !== "string" ||
