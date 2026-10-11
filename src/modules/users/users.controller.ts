@@ -1,18 +1,24 @@
+
 import {
   Request,
   Response,
 } from "express";
+
+import { AuthRequest } from "../../middleware/auth.js";
 
 import {
   getUserById,
   getUserByPhone,
   getUserByUsername,
   getUserByWasalCode,
+  updateMyDisplayName,
 } from "./users.service.js";
 
 const WASAL_CODE_REGEX = /^[A-Za-z0-9]{15}$/;
 
-function toPublicUser(user: NonNullable<Awaited<ReturnType<typeof getUserById>>>) {
+function toPublicUser(
+  user: NonNullable<Awaited<ReturnType<typeof getUserById>>>
+) {
   return {
     id: user.id,
     wasalCode: user.wasalCode,
@@ -142,4 +148,72 @@ export async function getUserByWasalCodeController(
   res.status(200).json({
     user: toPublicUser(user),
   });
+}
+
+export async function updateMyDisplayNameController(
+  req: AuthRequest,
+  res: Response
+): Promise<void> {
+  const userId = req.userId;
+
+  if (!userId) {
+    res.status(401).json({
+      success: false,
+      error: "AUTH_REQUIRED",
+    });
+    return;
+  }
+
+  const rawName = req.body?.displayName;
+
+  if (typeof rawName !== "string") {
+    res.status(400).json({
+      success: false,
+      error: "DISPLAY_NAME_REQUIRED",
+    });
+    return;
+  }
+
+  const displayName = rawName.trim();
+
+  if (!displayName) {
+    res.status(400).json({
+      success: false,
+      error: "DISPLAY_NAME_REQUIRED",
+    });
+    return;
+  }
+
+  if (displayName.length > 40) {
+    res.status(400).json({
+      success: false,
+      error: "DISPLAY_NAME_TOO_LONG",
+    });
+    return;
+  }
+
+  try {
+    const user = await updateMyDisplayName(
+      userId,
+      displayName
+    );
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        error: "USER_NOT_FOUND",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      user: toPublicUser(user),
+    });
+  } catch {
+    res.status(500).json({
+      success: false,
+      error: "DISPLAY_NAME_UPDATE_FAILED",
+    });
+  }
 }
