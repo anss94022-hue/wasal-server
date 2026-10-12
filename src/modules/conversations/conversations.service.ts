@@ -1,3 +1,4 @@
+
 import {
   createPrivateConversation,
   findConversationById,
@@ -13,7 +14,14 @@ const WASAL_CODE_REGEX = /^[A-Za-z0-9]{15}$/;
 
 export async function getConversationById(
   id: string,
+  userId: string,
 ) {
+  const isMember = await isConversationMember(id, userId);
+
+  if (!isMember) {
+    return null;
+  }
+
   return findConversationById(id);
 }
 
