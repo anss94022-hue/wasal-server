@@ -1,3 +1,4 @@
+
 import {
   Request,
   Response,
@@ -76,23 +77,17 @@ export async function createPrivateConversationController(
       error instanceof Error ? error.message : "";
 
     if (message === "INVALID_WASAL_CODE") {
-      res.status(400).json({
-        error: message,
-      });
+      res.status(400).json({ error: message });
       return;
     }
 
     if (message === "USER_NOT_FOUND") {
-      res.status(404).json({
-        error: message,
-      });
+      res.status(404).json({ error: message });
       return;
     }
 
     if (message === "CANNOT_CHAT_WITH_SELF") {
-      res.status(400).json({
-        error: message,
-      });
+      res.status(400).json({ error: message });
       return;
     }
 
@@ -127,6 +122,7 @@ export async function getConversationController(
 
     const conversation = await getConversationById(
       conversationId,
+      req.userId,
     );
 
     if (!conversation) {
