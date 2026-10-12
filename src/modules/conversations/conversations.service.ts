@@ -9,7 +9,7 @@ import {
   findUserByWasalCode,
 } from "../users/users.repository.js";
 
-const WASAL_CODE_REGEX = /^[A-Za-z0-9]{15}$/;
+const WASAL_CODE_REGEX = /^(?:[0-9]{5}|[A-Za-z0-9]{15})$/;
 
 export async function getConversationById(
   id: string,
@@ -29,8 +29,7 @@ export async function createPrivateChat(
 ) {
   const normalizedCode = wasalCode.trim();
 
-  // Wasal code must contain exactly 15
-  // English letters or digits.
+  // الرموز الجديدة خمسة أرقام، مع استمرار دعم الرموز القديمة.
   if (!WASAL_CODE_REGEX.test(normalizedCode)) {
     throw new Error("INVALID_WASAL_CODE");
   }
