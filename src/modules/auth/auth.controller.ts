@@ -24,7 +24,7 @@ export async function registerController(
     const displayName =
       typeof rawDisplayName === "string" &&
       rawDisplayName.trim()
-        ? rawDisplayName.trim().slice(0, 80)
+        ? rawDisplayName.trim()
         : "مستخدم وصال";
 
     const result = await register({
@@ -37,14 +37,28 @@ export async function registerController(
     });
   } catch (error) {
     const message =
-      error instanceof Error
-        ? error.message
-        : "";
+      error instanceof Error ? error.message : "";
 
-    if (
-      message ===
-      "WASAL_CODE_GENERATION_FAILED"
-    ) {
+    // يظهر السبب الحقيقي في سجلات الخادم فقط.
+    console.error("Wasal account registration failed:", error);
+
+    if (message === "DISPLAY_NAME_REQUIRED") {
+      res.status(400).json({
+        success: false,
+        error: message,
+      });
+      return;
+    }
+
+    if (message === "DISPLAY_NAME_TOO_LONG") {
+      res.status(400).json({
+        success: false,
+        error: message,
+      });
+      return;
+    }
+
+    if (message === "WASAL_CODE_GENERATION_FAILED") {
       res.status(503).json({
         success: false,
         error: message,
@@ -75,10 +89,7 @@ export async function loginController(
   res: Response,
 ): Promise<void> {
   try {
-    const {
-      phone,
-      password,
-    } = req.body ?? {};
+    const { phone, password } = req.body ?? {};
 
     if (
       typeof phone !== "string" ||
@@ -104,19 +115,17 @@ export async function loginController(
     });
   } catch (error) {
     const message =
-      error instanceof Error
-        ? error.message
-        : "";
+      error instanceof Error ? error.message : "";
 
-    if (
-      message === "INVALID_CREDENTIALS"
-    ) {
+    if (message === "INVALID_CREDENTIALS") {
       res.status(401).json({
         success: false,
         error: "INVALID_CREDENTIALS",
       });
       return;
     }
+
+    console.error("Wasal login failed:", error);
 
     res.status(500).json({
       success: false,
@@ -130,9 +139,7 @@ export async function refreshController(
   res: Response,
 ): Promise<void> {
   try {
-    const {
-      refreshToken,
-    } = req.body ?? {};
+    const { refreshToken } = req.body ?? {};
 
     if (
       typeof refreshToken !== "string" ||
@@ -145,20 +152,18 @@ export async function refreshController(
       return;
     }
 
-    const result =
-      await refreshAccessToken(
-        refreshToken,
-      );
+    const result = await refreshAccessToken(refreshToken);
 
     res.status(200).json({
       success: true,
       ...result,
     });
-  } catch {
+  } catch (error) {
+    console.error("Wasal token refresh failed:", error);
+
     res.status(401).json({
       success: false,
-      error:
-        "INVALID_OR_EXPIRED_REFRESH_TOKEN",
+      error: "INVALID_OR_EXPIRED_REFRESH_TOKEN",
     });
   }
 }
