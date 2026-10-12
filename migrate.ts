@@ -20,6 +20,10 @@ const migrations = [
     id: "003_allow_legacy_and_new_wasal_codes",
     file: "003_allow_legacy_and_new_wasal_codes.sql",
   },
+  {
+    id: "004_enforce_15_char_wasal_code",
+    file: "004_enforce_15_char_wasal_code.sql",
+  },
 ];
 
 const expectedTables = [
