@@ -1,4 +1,3 @@
-
 import {
   Request,
   Response,
@@ -14,7 +13,7 @@ import {
   updateMyDisplayName,
 } from "./users.service.js";
 
-const WASAL_CODE_REGEX = /^[A-Za-z0-9]{15}$/;
+const WASAL_CODE_REGEX = /^(?:[0-9]{5}|[A-Za-z0-9]{15})$/;
 
 function toPublicUser(
   user: NonNullable<Awaited<ReturnType<typeof getUserById>>>
