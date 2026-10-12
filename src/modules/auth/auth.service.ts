@@ -20,29 +20,34 @@ import type {
 
 import { verifyPassword } from "./password.js";
 
+const WASAL_CODE_LENGTH = 15;
+const WASAL_CODE_ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
 /**
- * إنشاء رمز وصال من خمسة أرقام.
- * استخدام randomInt يوفر توليدًا عشوائيًا مناسبًا.
- * padStart يحافظ على الأصفار في بداية الرمز.
+ * إنشاء رمز وصال عشوائي من 15 حرفًا أو رقمًا.
  */
 function generateWasalCode(): string {
-  return randomInt(0, 100000)
-    .toString()
-    .padStart(5, "0");
+  let code = "";
+
+  for (let index = 0; index < WASAL_CODE_LENGTH; index++) {
+    code += WASAL_CODE_ALPHABET[
+      randomInt(0, WASAL_CODE_ALPHABET.length)
+    ];
+  }
+
+  return code;
 }
 
 /**
  * البحث عن رمز غير مستخدم.
- * يبقى فحص UNIQUE في قاعدة البيانات ضروريًا
- * لمنع التكرار حتى لو حدث طلبان متزامنان.
+ * قيد UNIQUE في قاعدة البيانات يظل ضروريًا لمنع التكرار.
  */
 async function createUniqueWasalCode(): Promise<string> {
   for (let attempt = 0; attempt < 100; attempt++) {
     const wasalCode = generateWasalCode();
 
-    const existingUser = await findUserByWasalCode(
-      wasalCode,
-    );
+    const existingUser = await findUserByWasalCode(wasalCode);
 
     if (!existingUser) {
       return wasalCode;
@@ -89,7 +94,6 @@ export async function register(
 
 /**
  * تسجيل الدخول للحسابات التي تستخدم الهاتف وكلمة المرور.
- * أبقينا هذا المسار متوافقًا مع الحسابات الحالية.
  */
 export async function login(
   input: LoginInput,
@@ -129,8 +133,7 @@ export async function login(
 }
 
 /**
- * إصدار accessToken وrefreshToken جديدين.
- * يجب على العميل حفظ الرمزين المستلمين.
+ * تجديد accessToken وrefreshToken.
  */
 export async function refreshAccessToken(
   refreshToken: string,
