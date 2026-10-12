@@ -1,4 +1,3 @@
-
 import { randomInt } from "node:crypto";
 
 import { createAuthUser } from "./auth.repository.js";
@@ -21,25 +20,29 @@ import type {
 
 import { verifyPassword } from "./password.js";
 
+/**
+ * إنشاء رمز وصال من خمسة أرقام.
+ * استخدام randomInt يوفر توليدًا عشوائيًا مناسبًا.
+ * padStart يحافظ على الأصفار في بداية الرمز.
+ */
 function generateWasalCode(): string {
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-
-  let code = "";
-
-  for (let i = 0; i < 15; i++) {
-    code += chars[randomInt(chars.length)];
-  }
-
-  return code;
+  return randomInt(0, 100000)
+    .toString()
+    .padStart(5, "0");
 }
 
+/**
+ * البحث عن رمز غير مستخدم.
+ * يبقى فحص UNIQUE في قاعدة البيانات ضروريًا
+ * لمنع التكرار حتى لو حدث طلبان متزامنان.
+ */
 async function createUniqueWasalCode(): Promise<string> {
-  for (let attempt = 0; attempt < 20; attempt++) {
+  for (let attempt = 0; attempt < 100; attempt++) {
     const wasalCode = generateWasalCode();
 
-    const existingUser =
-      await findUserByWasalCode(wasalCode);
+    const existingUser = await findUserByWasalCode(
+      wasalCode,
+    );
 
     if (!existingUser) {
       return wasalCode;
@@ -56,6 +59,10 @@ export async function register(
 
   if (!displayName) {
     throw new Error("DISPLAY_NAME_REQUIRED");
+  }
+
+  if (displayName.length > 80) {
+    throw new Error("DISPLAY_NAME_TOO_LONG");
   }
 
   const wasalCode = await createUniqueWasalCode();
@@ -81,7 +88,8 @@ export async function register(
 }
 
 /**
- * Login is kept for compatibility with existing accounts.
+ * تسجيل الدخول للحسابات التي تستخدم الهاتف وكلمة المرور.
+ * أبقينا هذا المسار متوافقًا مع الحسابات الحالية.
  */
 export async function login(
   input: LoginInput,
@@ -121,8 +129,8 @@ export async function login(
 }
 
 /**
- * Issues a fresh access token and refresh token.
- * The client must save both returned tokens.
+ * إصدار accessToken وrefreshToken جديدين.
+ * يجب على العميل حفظ الرمزين المستلمين.
  */
 export async function refreshAccessToken(
   refreshToken: string,
