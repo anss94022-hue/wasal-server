@@ -13,7 +13,7 @@ import {
   updateMyDisplayName,
 } from "./users.service.js";
 
-const WASAL_CODE_REGEX = /^(?:[0-9]{5}|[A-Za-z0-9]{15})$/;
+const WASAL_CODE_REGEX = /^[A-Za-z0-9]{15}$/;
 
 function toPublicUser(
   user: NonNullable<Awaited<ReturnType<typeof getUserById>>>
@@ -34,119 +34,111 @@ export async function getUserByIdController(
   req: Request,
   res: Response
 ): Promise<void> {
-  const id = String(req.params.id ?? "").trim();
+  try {
+    const id = String(req.params.id ?? "").trim();
 
-  if (!id) {
-    res.status(400).json({
-      error: "USER_ID_REQUIRED",
-    });
-    return;
+    if (!id) {
+      res.status(400).json({ error: "USER_ID_REQUIRED" });
+      return;
+    }
+
+    const user = await getUserById(id);
+
+    if (!user) {
+      res.status(404).json({ error: "USER_NOT_FOUND" });
+      return;
+    }
+
+    res.status(200).json({ user: toPublicUser(user) });
+  } catch (error) {
+    console.error("Get user by ID failed:", error);
+    res.status(500).json({ error: "INTERNAL_SERVER_ERROR" });
   }
-
-  const user = await getUserById(id);
-
-  if (!user) {
-    res.status(404).json({
-      error: "USER_NOT_FOUND",
-    });
-    return;
-  }
-
-  res.status(200).json({
-    user: toPublicUser(user),
-  });
 }
 
 export async function getUserByPhoneController(
   req: Request,
   res: Response
 ): Promise<void> {
-  const phone = String(req.query.phone ?? "").trim();
+  try {
+    const phone = String(req.query.phone ?? "").trim();
 
-  if (!phone) {
-    res.status(400).json({
-      error: "PHONE_REQUIRED",
-    });
-    return;
+    if (!phone) {
+      res.status(400).json({ error: "PHONE_REQUIRED" });
+      return;
+    }
+
+    const user = await getUserByPhone(phone);
+
+    if (!user) {
+      res.status(404).json({ error: "USER_NOT_FOUND" });
+      return;
+    }
+
+    res.status(200).json({ user: toPublicUser(user) });
+  } catch (error) {
+    console.error("Search user by phone failed:", error);
+    res.status(500).json({ error: "INTERNAL_SERVER_ERROR" });
   }
-
-  const user = await getUserByPhone(phone);
-
-  if (!user) {
-    res.status(404).json({
-      error: "USER_NOT_FOUND",
-    });
-    return;
-  }
-
-  res.status(200).json({
-    user: toPublicUser(user),
-  });
 }
 
 export async function getUserByUsernameController(
   req: Request,
   res: Response
 ): Promise<void> {
-  const username = String(
-    req.query.username ?? ""
-  ).trim();
+  try {
+    const username = String(req.query.username ?? "").trim();
 
-  if (!username) {
-    res.status(400).json({
-      error: "USERNAME_REQUIRED",
-    });
-    return;
+    if (!username) {
+      res.status(400).json({ error: "USERNAME_REQUIRED" });
+      return;
+    }
+
+    const user = await getUserByUsername(username);
+
+    if (!user) {
+      res.status(404).json({ error: "USER_NOT_FOUND" });
+      return;
+    }
+
+    res.status(200).json({ user: toPublicUser(user) });
+  } catch (error) {
+    console.error("Search user by username failed:", error);
+    res.status(500).json({ error: "INTERNAL_SERVER_ERROR" });
   }
-
-  const user = await getUserByUsername(username);
-
-  if (!user) {
-    res.status(404).json({
-      error: "USER_NOT_FOUND",
-    });
-    return;
-  }
-
-  res.status(200).json({
-    user: toPublicUser(user),
-  });
 }
 
 export async function getUserByWasalCodeController(
   req: Request,
   res: Response
 ): Promise<void> {
-  const wasalCode = String(
-    req.query.wasalCode ?? ""
-  ).trim();
+  try {
+    const wasalCode = String(
+      req.query.wasalCode ?? ""
+    ).trim();
 
-  if (!wasalCode) {
-    res.status(400).json({
-      error: "WASAL_CODE_REQUIRED",
-    });
-    return;
+    if (!wasalCode) {
+      res.status(400).json({ error: "WASAL_CODE_REQUIRED" });
+      return;
+    }
+
+    if (!WASAL_CODE_REGEX.test(wasalCode)) {
+      res.status(400).json({ error: "INVALID_WASAL_CODE" });
+      return;
+    }
+
+    const user = await getUserByWasalCode(wasalCode);
+
+    if (!user) {
+      res.status(404).json({ error: "USER_NOT_FOUND" });
+      return;
+    }
+
+    res.status(200).json({ user: toPublicUser(user) });
+  } catch (error) {
+    console.error("Search user by Wasal code failed:", error);
+    res.status(500).json({ error: "INTERNAL_SERVER_ERROR" });
   }
-
-  if (!WASAL_CODE_REGEX.test(wasalCode)) {
-    res.status(400).json({
-      error: "INVALID_WASAL_CODE",
-    });
-    return;
-  }
-
-  const user = await getUserByWasalCode(wasalCode);
-
-  if (!user) {
-    res.status(404).json({
-      error: "USER_NOT_FOUND",
-    });
-    return;
-  }
-
-  res.status(200).json({
-    user: toPublicUser(user),
-  });
 }
 
 export async function updateMyDisplayNameController(
@@ -165,7 +157,7 @@ export async function updateMyDisplayNameController(
 
   const rawName = req.body?.displayName;
 
-  if (typeof rawName !== "string") {
+  if (typeof rawName !== "string" || !rawName.trim()) {
     res.status(400).json({
       success: false,
       error: "DISPLAY_NAME_REQUIRED",
@@ -174,14 +166,6 @@ export async function updateMyDisplayNameController(
   }
 
   const displayName = rawName.trim();
-
-  if (!displayName) {
-    res.status(400).json({
-      success: false,
-      error: "DISPLAY_NAME_REQUIRED",
-    });
-    return;
-  }
 
   if (displayName.length > 40) {
     res.status(400).json({
@@ -209,7 +193,9 @@ export async function updateMyDisplayNameController(
       success: true,
       user: toPublicUser(user),
     });
-  } catch {
+  } catch (error) {
+    console.error("Update display name failed:", error);
+
     res.status(500).json({
       success: false,
       error: "DISPLAY_NAME_UPDATE_FAILED",
