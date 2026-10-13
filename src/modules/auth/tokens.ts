@@ -49,10 +49,23 @@ function parseTokenPayload(
 
   if (
     typeof payload !== "object" ||
-    payload === null ||
-    typeof payload.userId !== "string" ||
-    payload.userId.length === 0
+    payload === null
   ) {
+    throw new Error("INVALID_TOKEN");
+  }
+
+  // دعم الرموز التي تستخدم userId
+  // أو sub لتحديد المستخدم.
+  const userId =
+    typeof payload.userId === "string" &&
+    payload.userId.length > 0
+      ? payload.userId
+      : typeof payload.sub === "string" &&
+          payload.sub.length > 0
+        ? payload.sub
+        : undefined;
+
+  if (!userId) {
     throw new Error("INVALID_TOKEN");
   }
 
@@ -64,7 +77,7 @@ function parseTokenPayload(
       : undefined;
 
   return {
-    userId: payload.userId,
+    userId,
     type,
   };
 }
@@ -72,9 +85,8 @@ function parseTokenPayload(
 /**
  * Used by protected HTTP routes and Socket.IO.
  *
- * New access tokens must have type="access".
- * Old tokens without a type are still accepted
- * so existing sessions are not immediately broken.
+ * Access tokens must not be refresh tokens.
+ * Legacy tokens without a type remain accepted.
  */
 export function verifyToken(
   token: string,
