@@ -8,6 +8,11 @@ interface TokenPayload {
   type?: "access" | "refresh";
 }
 
+type JwtPayloadObject = jwt.JwtPayload & {
+  userId?: unknown;
+  type?: unknown;
+};
+
 export function createTokens(
   userId: string,
 ): AuthTokens {
@@ -42,39 +47,55 @@ export function createTokens(
 function parseTokenPayload(
   token: string,
 ): TokenPayload {
-  const payload = jwt.verify(
+  const decoded = jwt.verify(
     token,
     env.jwtSecret,
   );
 
   if (
-    typeof payload !== "object" ||
-    payload === null
+    typeof decoded !== "object" ||
+    decoded === null
   ) {
     throw new Error("INVALID_TOKEN");
   }
 
-  // دعم الرموز التي تستخدم userId
-  // أو sub لتحديد المستخدم.
+  const payload = decoded as JwtPayloadObject;
+
+  /*
+   * يدعم رموز خادم وصال الحالي:
+   * sub: "123"
+   *
+   * ويدعم الرموز التي يستخدم فيها الخادم:
+   * userId: "123"
+   */
+  const rawUserId =
+    payload.userId ?? payload.sub;
+
   const userId =
-    typeof payload.userId === "string" &&
-    payload.userId.length > 0
-      ? payload.userId
-      : typeof payload.sub === "string" &&
-          payload.sub.length > 0
-        ? payload.sub
-        : undefined;
+    typeof rawUserId === "string"
+      ? rawUserId
+      : "";
 
   if (!userId) {
     throw new Error("INVALID_TOKEN");
   }
 
-  const type =
-    "type" in payload &&
-    (payload.type === "access" ||
-      payload.type === "refresh")
-      ? payload.type
-      : undefined;
+  /*
+   * نسمح فقط بنوعي الرموز المعروفين.
+   * الرموز القديمة التي لا تحتوي type
+   * تظل مقبولة للتوافق مع الجلسات السابقة.
+   */
+  let type: "access" | "refresh" | undefined;
+
+  if (payload.type === "access") {
+    type = "access";
+  } else if (payload.type === "refresh") {
+    type = "refresh";
+  } else if (payload.type === undefined) {
+    type = undefined;
+  } else {
+    throw new Error("INVALID_TOKEN_TYPE");
+  }
 
   return {
     userId,
@@ -83,10 +104,11 @@ function parseTokenPayload(
 }
 
 /**
- * Used by protected HTTP routes and Socket.IO.
+ * يتحقق من رموز الدخول المستخدمة في الطلبات
+ * المحمية واتصالات Socket.IO.
  *
- * Access tokens must not be refresh tokens.
- * Legacy tokens without a type remain accepted.
+ * يدعم userId وsub.
+ * لا يقبل رمز التجديد بوصفه رمز دخول.
  */
 export function verifyToken(
   token: string,
@@ -104,7 +126,7 @@ export function verifyToken(
 }
 
 /**
- * Used only by /auth/refresh.
+ * يتحقق من رموز التجديد فقط.
  */
 export function verifyRefreshToken(
   token: string,
