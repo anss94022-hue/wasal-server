@@ -1,11 +1,15 @@
 import cors from "cors";
 import express from "express";
 
+import { env } from "./config/env.js";
+
 import authRoutes from "./modules/auth/auth.routes.js";
 import usersRoutes from "./modules/users/users.routes.js";
 import conversationsRoutes from "./modules/conversations/conversations.routes.js";
 import messagesRoutes from "./modules/messages/messages.routes.js";
 import mediaRoutes from "./modules/media/media.routes.js";
+
+import { listCallHistory } from "./modules/calls/calls.history.js";
 
 import { requireAuth } from "./middleware/auth.js";
 
@@ -15,9 +19,9 @@ export function createApp() {
   app.use(
     cors({
       origin:
-        process.env.CORS_ORIGIN === "*"
+        env.corsOrigin === "*"
           ? true
-          : process.env.CORS_ORIGIN,
+          : env.corsOrigin,
     }),
   );
 
@@ -60,8 +64,22 @@ export function createApp() {
   app.use(
     "/api/calls",
     requireAuth,
-    (_req, res) => {
-      res.status(200).json([]);
+    async (req, res) => {
+      // استجابة ثابتة كانت تُخفي سجل المكالمات الحقيقي.
+      try {
+        const calls = await listCallHistory(String(req.userId));
+
+        res.status(200).json({
+          success: true,
+          calls,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: "CALL_HISTORY_FAILED",
+          message: (error as Error).message,
+        });
+      }
     },
   );
 

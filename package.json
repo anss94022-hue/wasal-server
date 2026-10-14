@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "migrate": "node dist/migrate.js",
+    "migrate": "node dist/src/database/migrate.js",
     "start": "npm run migrate && node dist/src/server.js",
     "test": "vitest run"
   },
