@@ -12,6 +12,7 @@ import mediaRoutes from "./modules/media/media.routes.js";
 import { listCallHistory } from "./modules/calls/calls.history.js";
 
 import { requireAuth } from "./middleware/auth.js";
+import type { AuthRequest } from "./middleware/auth.js";
 
 export function createApp() {
   const app = express();
@@ -64,7 +65,7 @@ export function createApp() {
   app.use(
     "/api/calls",
     requireAuth,
-    async (req, res) => {
+    async (req: AuthRequest, res) => {
       // استجابة ثابتة كانت تُخفي سجل المكالمات الحقيقي.
       try {
         const calls = await listCallHistory(String(req.userId));
